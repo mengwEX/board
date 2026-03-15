@@ -277,35 +277,98 @@ export default {
 
 ---
 
-## 7. Runtime 工作流
+## 7. Runtime 完整工作流
+
+Promptu Runtime 接管从 **LLM 回复** 到 **下一次 LLM 请求发出** 的完整区间。
 
 ```
-1. 启动：加载 promptu.config.js，激活 entry 组件
-2. 监听：watch 项目目录，.ptu 变化立即重新加载
-3. 每轮：
-   a. 接收输入（用户消息 / 工具结果 / LLM 回复）
-   b. 触发对应 on() 钩子
-   c. script 运行，状态更新
-   d. template 响应式重新渲染
-   e. 输出 { system, messages, tools }
-4. 发送给 LLM API
-5. 回到第 3 步
+LLM 回复
+  │
+  ├── 情况一：普通文本回复
+  │   ↓ on('llm_response')
+  │   script 决定内容进不进历史、怎么处理
+  │
+  ├── 情况二：tool_call（func call）
+  │   ↓ Runtime 解析 tool_call
+  │   查 <config>.tools 找到对应工具定义
+  │   执行工具（script 里 import 的 JS 函数）
+  │   结果 → on('tool_response')
+  │   script 控制结果分流（turn/history/session/drop）
+  │
+  └── 情况三：exec（AI 直接执行脚本/命令）
+      ↓ Runtime 拦截 exec 调用
+      执行对应脚本
+      结果 → on('exec_response')
+      script 控制结果分流
+          ↓
+  template 响应式重新渲染
+          ↓
+  输出 { system, messages, tools }
+          ↓
+        LLM API
+```
+
+**关键原则：工具执行由 Promptu Runtime 自己负责，不依赖宿主框架。**
+
+宿主框架（OpenClaw 等）只需做两件事：
+1. 把 LLM 原始回复交给 Promptu Runtime
+2. 把 Promptu Runtime 输出的 `{ system, messages, tools }` 发给 LLM API
+
+---
+
+## 8. 工具定义与执行
+
+工具在 `<config>` 中声明 schema（告诉 LLM 有哪些工具），在 `<script>` 中实现执行逻辑：
+
+```ptu
+<script>
+import { webSearch } from './tools/search.js'  // 工具实现
+
+// Runtime 收到 tool_call 后自动匹配并执行
+// 执行完毕触发 on('tool_response')
+on('tool_response', (result) => {
+  turn(result.raw)
+  history(result.summary)
+  drop(result.debug)
+})
+</script>
+
+<config>
+tools:
+  - name: web_search
+    description: 搜索网络获取信息
+    handler: webSearch   # 对应 script 里 import 的函数名
+    parameters:
+      query:
+        type: string
+        description: 搜索关键词
+</config>
+```
+
+Runtime 工具调度流程：
+```
+LLM 返回 tool_call { name: "web_search", args: { query: "..." } }
+  ↓
+Runtime 查 <config>.tools 找到 web_search
+  ↓
+调用 handler: webSearch(args)
+  ↓
+结果交给 on('tool_response')
 ```
 
 ---
 
-## 8. 与 Skill 机制的关系
+## 9. 与 Skill 机制的完整对比
 
-| | Skill (现在) | Promptu |
+| | Skill（现在） | Promptu |
 |--|------------|---------|
-| 定义方式 | Markdown 自然语言 | 代码声明 |
-| 工具调用 | AI 读描述后自行决定 | script 里直接 import/调用 |
-| 请求控制 | 无法控制 | 完全控制 system/messages/tools |
-| context 管理 | 无法声明 | turn/history/session/drop |
-| 运行时更新 | 需要新 session | 文件变化即时生效 |
-| AI 自创建 | 写 SKILL.md，下个 session 生效 | 写 .ptu，当前 session 立即生效 |
-
-Promptu 不是替换工具调用本身，而是替换**请求组装这一层**，让 AI 对整个请求有完整控制权。
+| 工具描述 | SKILL.md 自然语言 | `<config>.tools` 结构化声明 |
+| 工具执行 | 宿主框架调度 skill 脚本 | Runtime 自己调度，handler 在 script 里 |
+| 结果处理 | 全部自动进历史 | `turn/history/session/drop` 精细控制 |
+| 请求组装 | 框架固定逻辑 | template 响应式渲染，AI 完全控制 |
+| 运行时更新 | 需要新 session | 文件变化立即生效 |
+| AI 自创建工具 | 写 SKILL.md，下个 session 生效 | 写 .ptu，当前 session 立即生效 |
+| exec 调用 | 框架处理，AI 无法控制结果 | Runtime 拦截，`on('exec_response')` 控制分流 |
 
 ---
 
