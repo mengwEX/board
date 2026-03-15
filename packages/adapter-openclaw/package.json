@@ -1,0 +1,9 @@
+{
+  "name": "@promptu/adapter-openclaw",
+  "version": "0.1.0",
+  "description": "Promptu Runtime adapter for OpenClaw",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@promptu/runtime": "*"
+  }
+}
