@@ -1,0 +1,26 @@
+{
+  "name": "promptu",
+  "version": "0.1.0",
+  "description": "A reactive, composable language for AI agent request orchestration",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev -w packages/runtime",
+    "test": "npm test --workspaces"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "llm",
+    "prompt",
+    "framework"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

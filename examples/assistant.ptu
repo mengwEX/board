@@ -1,0 +1,78 @@
+<!-- assistant.ptu — 基础 AI 助手组件示例 -->
+
+<template>
+  You are {{ role }}.
+
+  <if :condition="user !== null">
+  User profile: {{ user.name }}, preferences: {{ user.prefs }}
+  </if>
+
+  <include src="./tool-context.ptu" :data="activeTools" />
+
+  Current task: {{ task }}
+
+  <if :condition="recentHistory.length > 0">
+  Recent context:
+  <each :items="recentHistory" :as="item">
+  - {{ item }}
+  </each>
+  </if>
+</template>
+
+<script>
+import { session, turn, history, drop } from '@promptu/context'
+
+// 从父组件或 session 注入
+inject('user')         // session 级别持久
+inject('activeTools')  // 父组件传入
+
+// 响应式状态（自动更新模板）
+let role = 'a helpful assistant'
+let task = ''
+let recentHistory = []
+
+// 向父组件抛出事件
+emit('task_result')
+emit('ready')
+
+on('mount', () => {
+  role = session.get('agent_role') ?? 'a helpful assistant'
+  emit('ready')
+})
+
+on('message', (input) => {
+  // AI 决定这条消息触发什么
+  task = input.content
+})
+
+on('tool_response', (result) => {
+  // 精细控制每个 key 的生命周期
+  session(result.user_id)         // 整个会话保留
+  turn(result.raw_data)           // 只这轮用
+  history(result.summary)         // 进历史
+  drop(result.debug_info)         // 直接丢弃
+
+  // 响应式更新
+  task = result.next_task ?? task
+  recentHistory = [...recentHistory.slice(-3), result.summary]
+
+  emit('task_result', {
+    task,
+    summary: result.summary
+  })
+})
+
+on('llm_response', (response) => {
+  if (response.finish_reason === 'stop') {
+    history(response.content)
+  }
+})
+</script>
+
+<config>
+model: gpt-4o
+max_tokens: 4000
+temperature: 0.7
+next: ./followup.ptu
+on_error: ./fallback.ptu
+</config>
