@@ -1,0 +1,57 @@
+
+<template>
+  <system>
+    You are {{ role }}.
+    Task: {{ task }}
+  </system>
+
+  <messages>
+    {{ history.last(5) }}
+  </messages>
+
+  <user>
+    {{ currentInput }}
+  </user>
+</template>
+
+<script>
+let role = 'a helpful assistant'
+let task = 'assist the user'
+let currentInput = ''
+
+on('mount', () => {
+  console.log('[test.board] mounted, role =', role)
+})
+
+on('message', (input) => {
+  currentInput = input.content
+  task = 'respond to: ' + input.content.slice(0, 20)
+})
+
+on('tool_response', (result) => {
+  // 精细分流
+  turn(result.raw ?? result)
+  history('Tool result: ' + JSON.stringify(result.result ?? result), { priority: 'low' })
+})
+
+on('llm_response', (response) => {
+  history(response.content, { role: 'assistant' })
+})
+
+// 声明一个工具 handler
+async function searchHandler(args) {
+  return { query: args.query, results: ['result1', 'result2'] }
+}
+</script>
+
+<config>
+model: gpt-4o
+max_tokens: 2000
+tools:
+  - name: web_search
+    description: 搜索网络
+    handler: searchHandler
+    parameters:
+      query:
+        type: string
+</config>

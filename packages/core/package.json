@@ -6,6 +6,9 @@
   "exports": {
     ".": "./src/index.js"
   },
+  "scripts": {
+    "test": "echo 'No tests for @board/core yet'"
+  },
   "dependencies": {
     "@promptu/runtime": "*"
   }

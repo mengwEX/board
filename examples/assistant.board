@@ -1,4 +1,4 @@
-<!-- assistant.ptu — 基础 AI 助手组件示例 -->
+<!-- assistant.board — 基础 AI 助手组件示例 -->
 
 <template>
   You are {{ role }}.
@@ -6,8 +6,6 @@
   <if :condition="user !== null">
   User profile: {{ user.name }}, preferences: {{ user.prefs }}
   </if>
-
-  <include src="./tool-context.ptu" :data="activeTools" />
 
   Current task: {{ task }}
 
@@ -20,51 +18,36 @@
 </template>
 
 <script>
-import { session, turn, history, drop } from '@promptu/context'
-
-// 从父组件或 session 注入
-inject('user')         // session 级别持久
-inject('activeTools')  // 父组件传入
-
 // 响应式状态（自动更新模板）
 let role = 'a helpful assistant'
 let task = ''
+let user = null
 let recentHistory = []
 
-// 向父组件抛出事件
-emit('task_result')
-emit('ready')
-
 on('mount', () => {
-  role = session.get('agent_role') ?? 'a helpful assistant'
-  emit('ready')
+  // 从 session 读取持久化状态
+  role = inject('agent_role') ?? 'a helpful assistant'
+  user = inject('user') ?? null
 })
 
-on('message', (input) => {
-  // AI 决定这条消息触发什么
-  task = input.content
-})
+on('update', (input) => {
+  // input 格式由使用方决定
+  if (input?.type === 'message') {
+    task = input.content
+  } else if (input?.type === 'tool_response') {
+    // 精细控制数据生命周期
+    session('last_tool_result', input.result)   // 整个会话保留
+    turn(input.raw_data)                          // 只这轮用
+    history(input.summary)                        // 进历史
+    drop(input.debug_info)                        // 直接丢弃
 
-on('tool_response', (result) => {
-  // 精细控制每个 key 的生命周期
-  session(result.user_id)         // 整个会话保留
-  turn(result.raw_data)           // 只这轮用
-  history(result.summary)         // 进历史
-  drop(result.debug_info)         // 直接丢弃
-
-  // 响应式更新
-  task = result.next_task ?? task
-  recentHistory = [...recentHistory.slice(-3), result.summary]
-
-  emit('task_result', {
-    task,
-    summary: result.summary
-  })
-})
-
-on('llm_response', (response) => {
-  if (response.finish_reason === 'stop') {
-    history(response.content)
+    // 响应式更新
+    task = input.next_task ?? task
+    recentHistory = [...recentHistory.slice(-3), input.summary]
+  } else if (input?.type === 'llm_response') {
+    if (input.finish_reason === 'stop') {
+      history(input.content)
+    }
   }
 })
 </script>
@@ -73,6 +56,4 @@ on('llm_response', (response) => {
 model: gpt-4o
 max_tokens: 4000
 temperature: 0.7
-next: ./followup.ptu
-on_error: ./fallback.ptu
 </config>

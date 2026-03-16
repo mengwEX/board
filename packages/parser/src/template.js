@@ -58,13 +58,16 @@ export function parseNodes(source) {
     const next = Math.min(nextInterp, nextTag)
 
     if (next === Infinity) {
-      const text = source.slice(i).trim()
+      // 保留内部空白，只去掉首尾换行
+      const text = source.slice(i).replace(/^\n+|\n+$/g, '')
       if (text) nodes.push({ type: 'text', value: text })
       break
     }
 
     // 收前面的文本
-    const textBefore = source.slice(i, next).trim()
+    // 保留内部空格（行内插值间距），只去掉首尾换行
+    const rawBefore = source.slice(i, next)
+    const textBefore = rawBefore.replace(/^\n+|\n+$/g, '')
     if (textBefore) nodes.push({ type: 'text', value: textBefore })
 
     if (nextInterp <= nextTag) {
