@@ -1,135 +1,156 @@
-# Promptu
+# Board
 
-> A reactive, composable language for AI agent request orchestration.
+> Reactive context engine for AI agents
 
-**Promptu** (`.board`) is a new programming language designed for the AI era — inspired by Vue's component model, built for LLM request lifecycle control.
+Board lets AI control the full LLM request lifecycle. Instead of hardcoded prompt logic, AI reads and writes `.board` files — reactive components that define how context is assembled, how tool results are routed, and what goes into the next LLM request.
 
-## The Problem
+## How it works
 
-Current agent frameworks (LangChain, AutoGen, etc.) give AI control over *what to do*, but not *how the request itself is constructed*. The context window contents, tool result routing, and next-turn composition are all decided by the framework — not the AI.
-
-Skill mechanisms improved things: AI can now create its own tools. But AI still can't control *what goes into the next request*.
-
-**Promptu gives AI full control over the single-request lifecycle.**
-
-## Core Concepts
-
-### Single File Component (`.board`)
-
-Every `.board` file is a **Promptu Component** — a self-contained unit that defines:
-
-- **`<template>`** — The prompt content sent to the LLM (reactive, variable-interpolated)
-- **`<script>`** — Business logic in JavaScript (handles tool responses, state, routing)
-- **`<config>`** — Model settings, routing, metadata
-
-### Reactive Bindings
-
-Variables declared in `<script>` automatically update the `<template>` — no manual re-rendering.
-
-### Context Lifecycle Control
-
-Tool results can be explicitly routed:
-
-```js
-turn(data)     // this turn only — dropped next round
-history(data)  // enters conversation history
-session(data)  // persists entire session
-drop(data)     // discarded entirely
-inject(data)   // available to LLM but not in history
+```
+LLM response (text / tool_calls)
+        ↓
+   [ Board Runtime ]
+   · executes tools
+   · triggers .board script hooks
+   · reactive state update
+   · re-renders template
+        ↓
+{ system, messages, tools }  ← next LLM request
 ```
 
-### Component Composition
+Board only handles the middle part. Your code calls the LLM. Board handles everything in between.
 
-Components can be nested, emit events, and inject shared state — just like Vue.
+## Install
 
-## Example
+```bash
+npm install @board/core
+```
 
-```ptu
-<!-- assistant.board -->
+## Usage
+
+```js
+import { createBoard } from '@board/core'
+
+const board = await createBoard('./main.board')
+
+// user message in → request body out
+let request = await board.update({ role: 'user', content: 'Hello' })
+
+// your code calls the LLM
+while (true) {
+  const response = await yourLLM(request)
+
+  // LLM response in → next request body out
+  request = await board.update(response)
+
+  if (!response.tool_calls?.length) {
+    console.log(response.content)
+    break
+  }
+}
+```
+
+## .board file
+
+A `.board` file is a reactive component with three blocks:
+
+```board
 <template>
-  You are {{ role }}.
+  <system>
+    You are {{ role }}.
+    Task: {{ task }}
+  </system>
 
-  User profile: {{ user.name }}, preferences: {{ user.prefs }}
+  <messages>
+    {{ history.last(10) }}
+  </messages>
 
-  <include src="./tool-context.board" :data="activeTools" />
-
-  Current task: {{ task }}
+  <user>
+    {{ currentInput }}
+  </user>
 </template>
 
 <script>
-import { session, turn, history, drop } from '@promptu/context'
-import ToolContext from './tool-context.board'
-
-inject('user')        // persistent across session
-inject('activeTools') // provided by parent component
-
-emit('task_result')
-
-on('tool_response', (result) => {
-  turn(result.raw)           // single-turn only
-  history(result.summary)    // compressed into history
-  session(result.user_id)    // persists in session
-  drop(result.debug_info)    // never sent anywhere
-
-  task = result.next_task    // reactive: template updates automatically
-  emit('task_result', task)
-})
+let role = 'a helpful assistant'
+let task = ''
+let currentInput = ''
 
 on('message', (input) => {
-  role = determineRole(input)  // reactive update
+  currentInput = input.content
+  task = 'respond to: ' + input.content
 })
+
+on('tool_response', (result) => {
+  turn(result.raw)          // this turn only
+  history(result.summary)   // enters history
+  session(result.userId)    // persists entire session
+  drop(result.debug)        // discarded
+})
+
+on('llm_response', (response) => {
+  history(response.content, { role: 'assistant' })
+})
+
+async function searchHandler({ query }) {
+  return { results: ['...'] }
+}
 </script>
 
 <config>
 model: gpt-4o
 max_tokens: 2000
-next: ./followup.board
+tools:
+  - name: web_search
+    description: Search the web
+    handler: searchHandler
+    parameters:
+      query:
+        type: string
 </config>
 ```
 
-## Architecture
+### Context routing
 
-```
-User Input / LLM Response / Tool Call
-           ↓
-    [ Promptu Runtime ]
-    ┌─────────────────────────────────┐
-    │  Component Tree                 │
-    │  ┌──────────────────────────┐   │
-    │  │ root.board                 │   │
-    │  │  ├─ chat.board             │   │
-    │  │  │   └─ tool-ctx.board     │   │
-    │  │  └─ executor.board         │   │
-    │  └──────────────────────────┘   │
-    │                                 │
-    │  Context Router                 │
-    │  @turn / @history / @session    │
-    │  @drop / @inject                │
-    │                                 │
-    │  Hot Reload — no recompile      │
-    └─────────────────────────────────┘
-           ↓
-    Assembled prompt + messages
-           ↓
-         LLM API
+Control exactly where each piece of data lives:
+
+| API | Lifetime |
+|-----|----------|
+| `turn(data)` | This turn only — dropped next round |
+| `history(data)` | Enters conversation history |
+| `session(key, value)` | Persists entire session |
+| `drop(data)` | Discarded entirely |
+
+## API
+
+```js
+// Create a board instance
+const board = await createBoard('./main.board', { watch: true })
+
+// Process any LLM message — returns next request body
+const request = await board.update(message)
+
+// Switch to a different .board file at runtime
+await board.load('./other.board')
+
+// Debug
+board.getState()    // reactive state
+board.getContext()  // history, session, turn data
+
+// Cleanup
+await board.destroy()
 ```
 
-## Project Structure
+## Packages
 
-```
-promptu/
-├── packages/
-│   ├── parser/     # .board file parser
-│   ├── core/       # reactive engine, context router
-│   └── runtime/    # Node.js runtime, hot reload, LLM adapter
-├── examples/       # example .board agents
-├── spec/           # language specification
-└── docs/           # documentation
-```
+| Package | Description |
+|---------|-------------|
+| `@board/core` | SDK — `createBoard`, `board.update` |
+| `@promptu/runtime` | Runtime engine, hot reload, tool execution |
+| `@promptu/parser` | `.board` file parser |
 
 ## Status
 
-🚧 Early design phase. Language spec in progress.
+🚧 Early development. API may change.
 
 ## License
 
