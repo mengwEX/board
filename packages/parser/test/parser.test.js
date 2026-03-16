@@ -49,7 +49,7 @@ tools:
 </config>
 `
 
-const ast = parse(sample, 'test.ptu')
+const ast = parse(sample, 'test.board')
 
 console.log('=== Parser Test ===\n')
 

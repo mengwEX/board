@@ -1,7 +1,7 @@
 {
   "name": "promptu",
   "version": "0.1.0",
-  "description": "A reactive, composable language for AI agent request orchestration",
+  "description": "Board — a reactive, composable context engine for AI agents",
   "private": true,
   "type": "module",
   "workspaces": [

@@ -13,7 +13,7 @@ const tmpDir = join(__dirname, 'tmp')
 
 await mkdir(tmpDir, { recursive: true })
 
-// ─── 测试用 .ptu 文件 ───────────────────────────────────────────────────────
+// ─── 测试用 .board 文件 ───────────────────────────────────────────────────────
 
 const testPtu = `
 <template>
@@ -37,7 +37,7 @@ let task = 'assist the user'
 let currentInput = ''
 
 on('mount', () => {
-  console.log('[test.ptu] mounted, role =', role)
+  console.log('[test.board] mounted, role =', role)
 })
 
 on('message', (input) => {
@@ -74,7 +74,7 @@ tools:
 </config>
 `
 
-const ptuPath = join(tmpDir, 'test.ptu')
+const ptuPath = join(tmpDir, 'test.board')
 await writeFile(ptuPath, testPtu)
 
 // ─── 运行测试 ──────────────────────────────────────────────────────────────

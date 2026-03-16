@@ -2,7 +2,7 @@
 
 > A reactive, composable language for AI agent request orchestration.
 
-**Promptu** (`.ptu`) is a new programming language designed for the AI era — inspired by Vue's component model, built for LLM request lifecycle control.
+**Promptu** (`.board`) is a new programming language designed for the AI era — inspired by Vue's component model, built for LLM request lifecycle control.
 
 ## The Problem
 
@@ -14,9 +14,9 @@ Skill mechanisms improved things: AI can now create its own tools. But AI still 
 
 ## Core Concepts
 
-### Single File Component (`.ptu`)
+### Single File Component (`.board`)
 
-Every `.ptu` file is a **Promptu Component** — a self-contained unit that defines:
+Every `.board` file is a **Promptu Component** — a self-contained unit that defines:
 
 - **`<template>`** — The prompt content sent to the LLM (reactive, variable-interpolated)
 - **`<script>`** — Business logic in JavaScript (handles tool responses, state, routing)
@@ -45,20 +45,20 @@ Components can be nested, emit events, and inject shared state — just like Vue
 ## Example
 
 ```ptu
-<!-- assistant.ptu -->
+<!-- assistant.board -->
 <template>
   You are {{ role }}.
 
   User profile: {{ user.name }}, preferences: {{ user.prefs }}
 
-  <include src="./tool-context.ptu" :data="activeTools" />
+  <include src="./tool-context.board" :data="activeTools" />
 
   Current task: {{ task }}
 </template>
 
 <script>
 import { session, turn, history, drop } from '@promptu/context'
-import ToolContext from './tool-context.ptu'
+import ToolContext from './tool-context.board'
 
 inject('user')        // persistent across session
 inject('activeTools') // provided by parent component
@@ -83,7 +83,7 @@ on('message', (input) => {
 <config>
 model: gpt-4o
 max_tokens: 2000
-next: ./followup.ptu
+next: ./followup.board
 </config>
 ```
 
@@ -96,10 +96,10 @@ User Input / LLM Response / Tool Call
     ┌─────────────────────────────────┐
     │  Component Tree                 │
     │  ┌──────────────────────────┐   │
-    │  │ root.ptu                 │   │
-    │  │  ├─ chat.ptu             │   │
-    │  │  │   └─ tool-ctx.ptu     │   │
-    │  │  └─ executor.ptu         │   │
+    │  │ root.board                 │   │
+    │  │  ├─ chat.board             │   │
+    │  │  │   └─ tool-ctx.board     │   │
+    │  │  └─ executor.board         │   │
     │  └──────────────────────────┘   │
     │                                 │
     │  Context Router                 │
@@ -119,10 +119,10 @@ User Input / LLM Response / Tool Call
 ```
 promptu/
 ├── packages/
-│   ├── parser/     # .ptu file parser
+│   ├── parser/     # .board file parser
 │   ├── core/       # reactive engine, context router
 │   └── runtime/    # Node.js runtime, hot reload, LLM adapter
-├── examples/       # example .ptu agents
+├── examples/       # example .board agents
 ├── spec/           # language specification
 └── docs/           # documentation
 ```

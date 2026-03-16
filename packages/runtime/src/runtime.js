@@ -4,11 +4,11 @@
  * 接管从 LLM 回复 → 下一次 LLM 请求的完整区间：
  *   1. 接收 LLM 回复（text / tool_call / exec）
  *   2. 自己执行工具（按 config.tools 找 handler）
- *   3. 触发 .ptu script 里的 on() 钩子
+ *   3. 触发 .board script 里的 on() 钩子
  *   4. 响应式状态变化 → 重新渲染 template
  *   5. 输出 { system, messages, tools }
  *
- * 文件即接入：watch 目录，.ptu 变化立即重新加载，无需重启。
+ * 文件即接入：watch 目录，.board 变化立即重新加载，无需重启。
  */
 
 import { readFile, watch } from 'fs/promises'
@@ -19,7 +19,7 @@ import { renderTemplate } from './renderer.js'
 
 export class PromptuRuntime {
   /**
-   * @param {string} entryPath - 入口 .ptu 文件路径
+   * @param {string} entryPath - 入口 .board 文件路径
    * @param {object} [opts]
    * @param {boolean} [opts.watch=true] - 是否监听文件变化
    */
@@ -86,7 +86,7 @@ export class PromptuRuntime {
         const watcher = watch(dir, { recursive: true })
         this._watcher = watcher
         for await (const event of watcher) {
-          if (event.filename?.endsWith('.ptu')) {
+          if (event.filename?.endsWith('.board')) {
             const changed = resolve(dir, event.filename)
             // 仅当是入口文件或 include 的子文件时重新加载
             if (changed === this._entryPath) {
