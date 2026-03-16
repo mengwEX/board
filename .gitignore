@@ -3,3 +3,7 @@ package-lock.json
 .DS_Store
 dist/
 *.log
+
+# OpenSpec — internal design proposals, not for public repo
+openspec/changes/*/
+openspec/specs/*/
