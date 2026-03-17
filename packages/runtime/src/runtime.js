@@ -33,7 +33,7 @@ export class PromptuRuntime {
     this._handlers = {}
 
     this._ctx = new ContextManager()
-    this._watcher = null
+    this._watchAbortController = null
   }
 
   // --- Lifecycle ---
@@ -47,8 +47,9 @@ export class PromptuRuntime {
   }
 
   async stop() {
-    if (this._watcher) {
-      this._watcher.abort?.()
+    if (this._watchAbortController) {
+      this._watchAbortController.abort()
+      this._watchAbortController = null
     }
     await this._triggerHook('destroy')
   }
@@ -71,12 +72,13 @@ export class PromptuRuntime {
   }
 
   _startWatch() {
-    const dir = dirname(this._entryPath);
+    const dir = dirname(this._entryPath)
+    const ac = new AbortController()
+    this._watchAbortController = ac
 
-    (async () => {
+    ;(async () => {
       try {
-        const watcher = watch(dir, { recursive: true })
-        this._watcher = watcher
+        const watcher = watch(dir, { recursive: true, signal: ac.signal })
         for await (const event of watcher) {
           if (event.filename && event.filename.endsWith('.board')) {
             const changed = resolve(dir, event.filename)
