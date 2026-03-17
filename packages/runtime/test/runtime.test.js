@@ -1,6 +1,9 @@
 /**
  * Runtime 端到端测试
  * node test/runtime.test.js
+ *
+ * 所有测试通过 board.update(input) 入口，
+ * 验证 template 自由输出结构。
  */
 
 import { PromptuRuntime } from '../src/index.js'
@@ -13,19 +16,62 @@ const tmpDir = join(__dirname, 'tmp')
 
 await mkdir(tmpDir, { recursive: true })
 
-// ─── 测试用 .board 文件 ───────────────────────────────────────────────────────
+let passed = 0
+let failed = 0
 
-const testPtu = `
+function assert(condition, msg) {
+  if (condition) {
+    passed++
+  } else {
+    failed++
+    console.error(`  ❌ FAIL: ${msg}`)
+  }
+}
+
+async function test(name, fn) {
+  console.log(`\n--- ${name} ---`)
+  try {
+    await fn()
+    console.log(`  ✅ passed`)
+  } catch (e) {
+    failed++
+    console.error(`  ❌ ${e.message}`)
+    console.error(`  ${e.stack?.split('\n').slice(1, 3).join('\n  ')}`)
+  }
+}
+
+// ─── Helper: 创建 board 实例 ─────────────────────────────────────────────
+
+async function createTestBoard(filename, source) {
+  const path = join(tmpDir, filename)
+  await writeFile(path, source)
+  const runtime = new PromptuRuntime(path, { watch: false })
+  await runtime.start()
+
+  return {
+    async update(input) {
+      await runtime._triggerHook('update', input)
+      return runtime._render()
+    },
+    getState() { return runtime.getState() },
+    getContext() { return runtime.getContext() },
+    async destroy() { await runtime.stop() },
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Tests
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Test 1: 标准 system/messages/user sections ──────────────────────────
+
+await test('standard sections via board.update()', async () => {
+  const board = await createTestBoard('t1.board', `
 <template>
   <system>
     You are {{ role }}.
     Task: {{ task }}
   </system>
-
-  <messages>
-    {{ history.last(5) }}
-  </messages>
-
   <user>
     {{ currentInput }}
   </user>
@@ -36,90 +82,336 @@ let role = 'a helpful assistant'
 let task = 'assist the user'
 let currentInput = ''
 
-on('mount', () => {
-  console.log('[test.board] mounted, role =', role)
+on('update', (input) => {
+  currentInput = input.content ?? ''
+  task = 'respond to: ' + currentInput.slice(0, 20)
 })
-
-on('message', (input) => {
-  currentInput = input.content
-  task = 'respond to: ' + input.content.slice(0, 20)
-})
-
-on('tool_response', (result) => {
-  // 精细分流
-  turn(result.raw ?? result)
-  history('Tool result: ' + JSON.stringify(result.result ?? result), { priority: 'low' })
-})
-
-on('llm_response', (response) => {
-  history(response.content, { role: 'assistant' })
-})
-
-// 声明一个工具 handler
-async function searchHandler(args) {
-  return { query: args.query, results: ['result1', 'result2'] }
-}
 </script>
+`)
 
-<config>
-model: gpt-4o
-max_tokens: 2000
-tools:
-  - name: web_search
-    description: 搜索网络
-    handler: searchHandler
-    parameters:
-      query:
-        type: string
-</config>
-`
+  const result = await board.update({ content: 'hello world' })
 
-const ptuPath = join(tmpDir, 'test.board')
-await writeFile(ptuPath, testPtu)
+  assert(typeof result.system === 'string', 'system should be string')
+  assert(result.system.includes('a helpful assistant'), 'system should contain role')
+  assert(result.system.includes('respond to: hello world'), 'system should contain updated task')
+  assert(result.user === 'hello world', 'user should be currentInput')
 
-// ─── 运行测试 ──────────────────────────────────────────────────────────────
-
-console.log('=== Promptu Runtime E2E Test ===\n')
-
-const runtime = new PromptuRuntime(ptuPath, { watch: false })
-await runtime.start()
-console.log('✅ Runtime started\n')
-
-// 1. 用户发消息
-console.log('--- 1. processUserMessage ---')
-const req1 = await runtime.processUserMessage('你好，帮我搜索一下 AI 框架')
-console.log('system:', req1.system)
-console.log('messages count:', req1.messages.length)
-console.log('tools count:', req1.tools.length)
-console.log()
-
-// 2. 模拟 LLM 返回 tool_call
-console.log('--- 2. process tool_call ---')
-const req2 = await runtime.process({
-  tool_calls: [{
-    name: 'web_search',
-    arguments: { query: 'AI 框架 2024' }
-  }]
+  await board.destroy()
 })
-console.log('system:', req2.system)
-console.log('messages:', JSON.stringify(req2.messages, null, 2))
-console.log()
 
-// 3. 模拟 LLM 文本回复
-console.log('--- 3. process text response ---')
-const req3 = await runtime.process({
-  content: '根据搜索结果，以下是主流 AI 框架...',
-  tool_calls: []
+// ─── Test 2: 自定义 section 名 ──────────────────────────────────────────
+
+await test('custom section names', async () => {
+  const board = await createTestBoard('t2.board', `
+<template>
+  <prompt>
+    {{ instruction }}
+  </prompt>
+  <context>
+    {{ contextData }}
+  </context>
+  <functions>
+    {{ toolList }}
+  </functions>
+</template>
+
+<script>
+let instruction = 'You are a coder.'
+let contextData = ''
+let toolList = []
+
+on('update', (input) => {
+  contextData = input.context ?? ''
+  toolList = input.tools ?? []
 })
-console.log('messages count:', req3.messages.length)
-console.log('history count:', runtime.getContext().history.length)
-console.log()
+</script>
+`)
 
-// 4. 验证 context 分流
-console.log('--- 4. context check ---')
-const ctx = runtime.getContext()
-console.log('turn data (应已清空):', ctx.turn)
-console.log('history items:', ctx.history.length)
-console.log('session:', ctx.session)
+  const result = await board.update({
+    context: 'Working on project X',
+    tools: [{ name: 'run_code' }, { name: 'read_file' }],
+  })
 
-console.log('\n✅ All tests passed')
+  assert(result.prompt === 'You are a coder.', 'prompt section')
+  assert(result.context === 'Working on project X', 'context section')
+  assert(Array.isArray(result.functions), 'functions should be array')
+  assert(result.functions.length === 2, 'functions should have 2 items')
+  assert(result.functions[0].name === 'run_code', 'first function name')
+
+  // 不应有 system/messages/tools 等硬编码字段
+  assert(result.system === undefined, 'no hardcoded system field')
+  assert(result.messages === undefined, 'no hardcoded messages field')
+  assert(result.tools === undefined, 'no hardcoded tools field')
+
+  await board.destroy()
+})
+
+// ─── Test 3: 无 section template（rawNodes）──────────────────────────────
+
+await test('raw template (no sections) returns direct value', async () => {
+  const board = await createTestBoard('t3.board', `
+<template>
+  {{ output }}
+</template>
+
+<script>
+let output = { greeting: 'hello' }
+
+on('update', (input) => {
+  output = { greeting: 'hello', name: input.name }
+})
+</script>
+`)
+
+  const result = await board.update({ name: 'Alice' })
+
+  assert(typeof result === 'object', 'result should be object')
+  assert(result.greeting === 'hello', 'greeting should be hello')
+  assert(result.name === 'Alice', 'name should be Alice')
+
+  await board.destroy()
+})
+
+// ─── Test 4: 单 interpolation 保留数组类型 ─────────────────────────────
+
+await test('single interpolation preserves array type', async () => {
+  const board = await createTestBoard('t4.board', `
+<template>
+  <items>
+    {{ list }}
+  </items>
+</template>
+
+<script>
+let list = []
+
+on('update', (input) => {
+  list = input.data ?? []
+})
+</script>
+`)
+
+  const result = await board.update({ data: [1, 2, 3] })
+
+  assert(Array.isArray(result.items), 'items should be array')
+  assert(result.items.length === 3, 'items should have 3 elements')
+  assert(result.items[0] === 1, 'first item should be 1')
+
+  await board.destroy()
+})
+
+// ─── Test 5: <message> 节点渲染为消息数组 ────────────────────────────────
+
+await test('message nodes render to array', async () => {
+  const board = await createTestBoard('t5.board', `
+<template>
+  <messages>
+    <message role="system">You are helpful.</message>
+    <message role="user">{{ userMsg }}</message>
+  </messages>
+</template>
+
+<script>
+let userMsg = ''
+
+on('update', (input) => {
+  userMsg = input.content ?? ''
+})
+</script>
+`)
+
+  const result = await board.update({ content: 'Hi there' })
+
+  assert(Array.isArray(result.messages), 'messages should be array')
+  assert(result.messages.length === 2, 'should have 2 messages')
+  assert(result.messages[0].role === 'system', 'first message role')
+  assert(result.messages[0].content === 'You are helpful.', 'first message content')
+  assert(result.messages[1].role === 'user', 'second message role')
+  assert(result.messages[1].content === 'Hi there', 'second message content')
+
+  await board.destroy()
+})
+
+// ─── Test 6: on('update') 钩子接收任意输入 ─────────────────────────────
+
+await test('update hook receives arbitrary input', async () => {
+  const board = await createTestBoard('t6.board', `
+<template>
+  <result>
+    {{ output }}
+  </result>
+</template>
+
+<script>
+let output = 'initial'
+
+on('update', (input) => {
+  if (input.type === 'tool_result') {
+    output = 'tool: ' + input.data
+  } else if (input.type === 'user_message') {
+    output = 'user: ' + input.text
+  } else {
+    output = 'unknown: ' + JSON.stringify(input)
+  }
+})
+</script>
+`)
+
+  const r1 = await board.update({ type: 'tool_result', data: 'success' })
+  assert(r1.result === 'tool: success', 'tool result handling')
+
+  const r2 = await board.update({ type: 'user_message', text: 'hello' })
+  assert(r2.result === 'user: hello', 'user message handling')
+
+  const r3 = await board.update({ type: 'other', x: 1 })
+  assert(r3.result.startsWith('unknown:'), 'unknown input handling')
+
+  await board.destroy()
+})
+
+// ─── Test 7: 响应式状态更新 ─────────────────────────────────────────────
+
+await test('reactive state updates across calls', async () => {
+  const board = await createTestBoard('t7.board', `
+<template>
+  <system>
+    Count: {{ count }}
+  </system>
+</template>
+
+<script>
+let count = 0
+
+on('update', () => {
+  count++
+})
+</script>
+`)
+
+  const r1 = await board.update({})
+  assert(r1.system === 'Count: 1', 'count should be 1 after first update')
+
+  const r2 = await board.update({})
+  assert(r2.system === 'Count: 2', 'count should be 2 after second update')
+
+  const r3 = await board.update({})
+  assert(r3.system === 'Count: 3', 'count should be 3 after third update')
+
+  await board.destroy()
+})
+
+// ─── Test 8: context API 在 script 中可用 ────────────────────────────────
+
+await test('context API (history/session) available in script', async () => {
+  const board = await createTestBoard('t8.board', `
+<template>
+  <status>
+    {{ status }}
+  </status>
+</template>
+
+<script>
+let status = 'idle'
+
+on('update', (input) => {
+  if (input.action === 'save') {
+    session('lastSaved', input.value)
+    history(input.value, { role: 'user' })
+    status = 'saved'
+  } else if (input.action === 'check') {
+    status = 'session:' + inject('lastSaved')
+  }
+})
+</script>
+`)
+
+  await board.update({ action: 'save', value: 'test-data' })
+  const r2 = await board.update({ action: 'check' })
+  assert(r2.status === 'session:test-data', 'session data should be retrievable')
+
+  const ctx = board.getContext()
+  assert(ctx.history.length === 1, 'history should have 1 entry')
+
+  await board.destroy()
+})
+
+// ─── Test 9: 无 template 的 board ────────────────────────────────────────
+
+await test('board without template returns empty object', async () => {
+  const board = await createTestBoard('t9.board', `
+<script>
+let x = 1
+on('update', () => { x++ })
+</script>
+`)
+
+  const result = await board.update({})
+  assert(typeof result === 'object', 'result should be object')
+  assert(Object.keys(result).length === 0, 'result should be empty')
+
+  await board.destroy()
+})
+
+// ─── Test 10: <if> 条件渲染在 section 内部工作 ─────────────────────────
+
+await test('conditional rendering inside section', async () => {
+  const board = await createTestBoard('t10.board', `
+<template>
+  <system>
+    Base prompt.
+    <if :condition="debug">
+    DEBUG MODE ON.
+    </if>
+  </system>
+</template>
+
+<script>
+let debug = false
+
+on('update', (input) => {
+  debug = input.debug ?? false
+})
+</script>
+`)
+
+  const r1 = await board.update({ debug: false })
+  assert(!r1.system.includes('DEBUG MODE ON'), 'should not include debug when false')
+
+  const r2 = await board.update({ debug: true })
+  assert(r2.system.includes('DEBUG MODE ON'), 'should include debug when true')
+
+  await board.destroy()
+})
+
+// ─── Test 11: process/processUserMessage 不再存在 ──────────────────────
+
+await test('process/processUserMessage methods do not exist', async () => {
+  const board = await createTestBoard('t11.board', `
+<template>
+  <output>ok</output>
+</template>
+`)
+
+  // 验证 PromptuRuntime 上没有这些方法
+  const path = join(tmpDir, 't11.board')
+  const runtime = new PromptuRuntime(path, { watch: false })
+  assert(typeof runtime.process === 'undefined', 'process should not exist')
+  assert(typeof runtime.processUserMessage === 'undefined', 'processUserMessage should not exist')
+  assert(typeof runtime._executeTool === 'undefined', '_executeTool should not exist')
+  assert(typeof runtime._registerToolHandlers === 'undefined', '_registerToolHandlers should not exist')
+
+  await board.destroy()
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Results
+// ═══════════════════════════════════════════════════════════════════════════
+
+console.log(`\n${'='.repeat(50)}`)
+console.log(`Results: ${passed} passed, ${failed} failed`)
+if (failed > 0) {
+  console.log('\n❌ Some tests failed')
+  process.exit(1)
+} else {
+  console.log('\n✅ All tests passed')
+}

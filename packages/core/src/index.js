@@ -80,6 +80,11 @@ export class Board {
     return this._runtime.getState()
   }
 
+  /** 读取当前 context（history / session / turn 数据，调试用）*/
+  getContext() {
+    return this._runtime.getContext()
+  }
+
   /** 停止 Runtime，清理资源 */
   async destroy() {
     await this._runtime.stop()

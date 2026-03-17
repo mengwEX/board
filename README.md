@@ -46,31 +46,87 @@ const output = await board.update(input)
 
 ```board
 <template>
-  <!-- define your output structure here -->
-  <!-- use reactive variables from <script> -->
-  {{ result }}
+  <!-- Top-level tags become keys in the output object -->
+  <system>
+    You are {{ role }}. Help the user with {{ task }}.
+  </system>
+
+  <messages>
+    <!-- message nodes render to [{ role, content }] arrays -->
+    {{ history }}
+    <message role="user">{{ userInput }}</message>
+  </messages>
+
+  <tools>
+    <!-- single interpolation preserves original type (array/object) -->
+    {{ activeTools }}
+  </tools>
 </template>
 
 <script>
-let result = ''
+let role = 'assistant'
+let task = 'general tasks'
+let userInput = ''
+let history = []
+let activeTools = []
 
 on('update', (input) => {
   // handle whatever input format you defined
   // update reactive state — template re-renders automatically
-  result = process(input)
+  userInput = input.message
+  history = input.history ?? []
 })
 
 // context routing APIs
 // turn(data)        — available this turn only
 // history(data)     — enters conversation history
 // session(key, val) — persists entire session
+// inject(key)       — read session value
 // drop(data)        — discard
 </script>
 
 <config>
-# any config your runtime needs
+model: gpt-4o
 </config>
 ```
+
+The above produces:
+
+```js
+{
+  system: "You are assistant. Help the user with general tasks.",
+  messages: [
+    ...history,
+    { role: "user", content: "..." }
+  ],
+  tools: [/* activeTools array preserved as-is */]
+}
+```
+
+### Template output rules
+
+| Template pattern | Output |
+|---|---|
+| Top-level `<tag>...</tag>` | `output.tag = ...` |
+| Single `{{ expr }}` → object/array | Value preserved as-is |
+| `<message>` nodes inside section | Rendered to `[{ role, content }]` array |
+| Plain text / mixed nodes | Rendered to trimmed string |
+| No top-level tags, raw content | Direct value (string or typed) |
+| Empty template / no template | `{}` |
+
+### Custom section names
+
+Any tag name works — Board imposes no schema:
+
+```board
+<template>
+  <prompt>{{ systemPrompt }}</prompt>
+  <context>{{ retrievedDocs }}</context>
+  <functions>{{ toolDefinitions }}</functions>
+</template>
+```
+
+→ `{ prompt: "...", context: [...], functions: [...] }`
 
 ## API
 
@@ -86,6 +142,9 @@ await board.load('./other.board')
 
 // inspect state (debug)
 board.getState()
+
+// inspect context: { history, session, turn }
+board.getContext()
 
 // cleanup
 await board.destroy()

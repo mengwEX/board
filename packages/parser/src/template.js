@@ -1,6 +1,10 @@
 /**
  * template 块解析器
  * 把 <template> 内容解析成节点树
+ *
+ * 返回通用 sections 结构：
+ * - { sections: [{ name, nodes }] }          — 有顶层标签时
+ * - { sections: [], rawNodes: Node[] }       — 无顶层标签时（纯文本/插值）
  */
 
 /**
@@ -8,37 +12,79 @@
  * @returns {TemplateAST}
  */
 export function parseTemplate(source) {
-  // 提取三个内容区
-  const system = extractSection(source, 'system')
-  const messages = extractSection(source, 'messages')
-  const user = extractSection(source, 'user')
+  const sections = extractSections(source)
 
-  // 如果没有显式分区，整个 template 作为 system
-  if (!system && !messages && !user) {
+  // 无顶层标签：整个 template 作为 rawNodes
+  if (sections.length === 0) {
+    const trimmed = source.trim()
     return {
-      system: parseNodes(source.trim()),
-      messages: null,   // null = 默认带全部历史
-      user: null,
+      sections: [],
+      rawNodes: trimmed ? parseNodes(trimmed) : [],
     }
   }
 
-  return {
-    system: system ? parseNodes(system) : [],
-    messages: messages ? parseNodes(messages) : null, // null = 默认带全部历史
-    user: user ? parseNodes(user) : [],
-  }
+  return { sections }
 }
 
 /**
- * 提取命名 section
+ * 扫描 <template> 内容，提取所有顶层标签作为 sections。
+ * 不预设任何标签名，任意顶层标签都会成为一个 section。
+ *
+ * 内联标签（<if>, <each>, <include>, <message>, <user>, <assistant>）
+ * 不作为 section 顶层标签，它们只出现在 section 内部。
  */
-function extractSection(source, name) {
-  const open = source.indexOf(`<${name}>`)
-  if (open === -1) return null
-  const contentStart = open + name.length + 2
-  const close = source.indexOf(`</${name}>`, contentStart)
-  if (close === -1) return null
-  return source.slice(contentStart, close)
+function extractSections(source) {
+  const sections = []
+  // 控制流标签：不作为 section，只在 section 内部使用
+  const inlineTags = new Set(['if', 'each', 'include'])
+
+  // 扫描所有顶层标签
+  const tagPattern = /<([a-zA-Z][\w-]*)(?:\s[^>]*)?>|<\/([a-zA-Z][\w-]*)>/g
+  let match
+  let depth = 0
+  let currentTag = null
+  let contentStart = -1
+
+  while ((match = tagPattern.exec(source)) !== null) {
+    const openTag = match[1]
+    const closeTag = match[2]
+
+    if (openTag) {
+      // 自闭合标签跳过
+      if (match[0].endsWith('/>')) continue
+
+      if (depth === 0) {
+        // 顶层开标签
+        if (inlineTags.has(openTag)) {
+          // 内联标签出现在顶层 → 跳过，不作为 section
+          // 需要追踪深度以正确跳过其闭合标签
+          // 但这里我们不将其视为 section
+          // 回退到 "无 section" 情况由外层处理
+          continue
+        }
+        currentTag = openTag
+        contentStart = match.index + match[0].length
+        depth = 1
+      } else if (openTag === currentTag) {
+        depth++
+      }
+    } else if (closeTag) {
+      if (closeTag === currentTag) {
+        depth--
+        if (depth === 0) {
+          const content = source.slice(contentStart, match.index)
+          sections.push({
+            name: currentTag,
+            nodes: parseNodes(content.trim()),
+          })
+          currentTag = null
+          contentStart = -1
+        }
+      }
+    }
+  }
+
+  return sections
 }
 
 /**
@@ -162,9 +208,12 @@ function parseAttrs(attrStr) {
 
 /**
  * @typedef {Object} TemplateAST
- * @property {Node[]|null} system
- * @property {Node[]|null} messages  - null 表示使用默认历史
- * @property {Node[]|null} user
+ * @property {Section[]} sections - 顶层标签 sections
+ * @property {Node[]} [rawNodes] - 无 section 时的原始节点（仅当 sections 为空时存在）
+ *
+ * @typedef {Object} Section
+ * @property {string} name - section 标签名
+ * @property {Node[]} nodes - section 内的节点树
  *
  * @typedef {TextNode|InterpolationNode|IfNode|EachNode|IncludeNode|MessageNode} Node
  */

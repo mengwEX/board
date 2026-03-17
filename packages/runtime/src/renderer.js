@@ -1,7 +1,9 @@
 /**
  * @promptu/runtime — Template 渲染器
  *
- * 把 TemplateAST + 响应式状态 → { system, messages, tools }
+ * 把 TemplateAST + 响应式状态 → 由 template 定义的输出结构
+ *
+ * 不预设任何 schema，template 中的顶层标签名直接成为输出对象的 key。
  */
 
 /**
@@ -9,47 +11,87 @@
  * @param {import('@promptu/parser').TemplateAST} ast
  * @param {object} state - 响应式状态（script 里的变量）
  * @param {import('./context.js').ContextManager} ctx
- * @param {object} config - <config> 解析结果
- * @returns {{ system: string, messages: Array, tools: Array }}
+ * @returns {any} 由 template 结构决定的输出
  */
-export function renderTemplate(ast, state, ctx, config = {}) {
+export function renderTemplate(ast, state, ctx) {
   if (!ast) {
-    return { system: '', messages: ctx.getHistory(), tools: config.tools ?? [] }
+    return {}
   }
 
-  // 渲染 system
-  const system = ast.system ? renderNodes(ast.system, state, ctx).trim() : ''
-
-  // 渲染 messages
-  // null = 使用默认历史（全部带上）
-  // 有节点 = 按声明渲染
-  let messages
-  if (ast.messages === null) {
-    messages = ctx.getHistory()
-  } else {
-    messages = renderMessagesNodes(ast.messages, state, ctx)
+  // 无 section：直接渲染 rawNodes
+  if (ast.sections.length === 0 && ast.rawNodes) {
+    return renderRawNodes(ast.rawNodes, state, ctx)
   }
 
-  // 渲染 user（当前轮用户消息）
-  const userContent = ast.user ? renderNodes(ast.user, state, ctx).trim() : ''
-  if (userContent) {
-    messages = [...messages, { role: 'user', content: userContent }]
+  // 有 sections：每个 section 渲染为输出对象的一个 key
+  const output = {}
+  for (const section of ast.sections) {
+    output[section.name] = renderSection(section, state, ctx)
+  }
+  return output
+}
+
+// ─── Section 渲染（智能类型推断）─────────────────────────────────────────
+
+/**
+ * 渲染单个 section，智能推断返回类型：
+ * 1. 单个 interpolation 且结果为对象/数组 → 直接返回（保留类型）
+ * 2. 包含 <message> 节点 → 收集为 [{ role, content }] 数组
+ * 3. 其余 → 渲染为 string
+ */
+function renderSection(section, state, ctx) {
+  const { nodes } = section
+
+  // 情况 1：单个 interpolation — 保留原始类型
+  if (isSingleInterpolation(nodes)) {
+    const value = evalExpr(nodes[0].expr, state)
+    if (value !== null && value !== undefined && typeof value === 'object') {
+      return value  // 保留对象/数组类型
+    }
+    // 原始类型也直接返回
+    return value
   }
 
-  // turn 数据注入（只这轮用）
-  const turnData = ctx.getTurnData()
-  if (turnData.length > 0) {
-    messages = [...messages, {
-      role: 'tool',
-      content: turnData.map(d => typeof d === 'string' ? d : JSON.stringify(d)).join('\n')
-    }]
+  // 情况 2：包含 <message> 节点 → 收集为消息数组
+  if (hasMessageNodes(nodes)) {
+    return renderMessagesNodes(nodes, state, ctx)
   }
 
-  return {
-    system,
-    messages,
-    tools: config.tools ?? [],
+  // 情况 3：其余 → 渲染为 string
+  return renderNodes(nodes, state, ctx).trim()
+}
+
+/**
+ * 渲染无 section 的 rawNodes
+ */
+function renderRawNodes(nodes, state, ctx) {
+  // 单个 interpolation → 保留类型
+  if (isSingleInterpolation(nodes)) {
+    return evalExpr(nodes[0].expr, state)
   }
+  // 其余 → string
+  return renderNodes(nodes, state, ctx).trim()
+}
+
+// ─── 类型推断辅助 ────────────────────────────────────────────────────────
+
+/**
+ * 判断节点列表是否为"单个插值"
+ * 允许前后有空白文本，但有效节点只有一个 interpolation
+ */
+function isSingleInterpolation(nodes) {
+  const meaningful = nodes.filter(n => {
+    if (n.type === 'text' && !n.value.trim()) return false
+    return true
+  })
+  return meaningful.length === 1 && meaningful[0].type === 'interpolation'
+}
+
+/**
+ * 判断节点列表中是否包含 <message> 类型节点
+ */
+function hasMessageNodes(nodes) {
+  return nodes.some(n => n.type === 'message')
 }
 
 // ─── 节点渲染 ───────────────────────────────────────────────────────────────
@@ -67,8 +109,12 @@ function renderNode(node, state, ctx) {
     case 'text':
       return node.value
 
-    case 'interpolation':
-      return evalExpr(node.expr, state)
+    case 'interpolation': {
+      const val = evalExpr(node.expr, state)
+      if (val === null || val === undefined) return ''
+      if (typeof val === 'object') return JSON.stringify(val)
+      return String(val)
+    }
 
     case 'if': {
       const cond = node.condition
@@ -89,12 +135,11 @@ function renderNode(node, state, ctx) {
 
     case 'include': {
       // 子组件渲染留给 Runtime 处理，这里返回占位
-      // Runtime 在渲染前会递归解析 include
       return node._rendered ?? `[include:${node.src?.value ?? '?'}]`
     }
 
     case 'message': {
-      // <message role="user">...</message>
+      // 在字符串渲染模式下，message 节点渲染为标记文本
       const role = node.role?.value ?? 'user'
       const content = renderNodes(node.children, state, ctx).trim()
       return `[MSG:${role}]${content}[/MSG]`
@@ -106,14 +151,14 @@ function renderNode(node, state, ctx) {
 }
 
 /**
- * 渲染 <messages> 区块 → Message 对象数组
+ * 渲染 <message> 节点 → Message 对象数组
  */
 function renderMessagesNodes(nodes, state, ctx) {
   const messages = []
 
   for (const node of nodes) {
     if (node.type === 'interpolation') {
-      // {{ history.last(5) }} 这类表达式
+      // {{ history }} 等表达式
       const val = evalExpr(node.expr, state)
       if (Array.isArray(val)) {
         messages.push(...val)
