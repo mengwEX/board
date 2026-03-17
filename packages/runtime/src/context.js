@@ -16,7 +16,7 @@ export class ContextManager {
     this._session = {}    // session 级 KV 存储
   }
 
-  // ─── 四种分流 API（供 .ptu script 调用）────────────────────────────────
+  // ─── 四种分流 API（供 .board script 调用）────────────────────────────────
 
   /**
    * 路由到当前轮（下轮自动丢弃）

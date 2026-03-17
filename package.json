@@ -1,5 +1,5 @@
 {
-  "name": "promptu",
+  "name": "board",
   "version": "0.1.0",
   "description": "Board — a reactive, composable context engine for AI agents",
   "private": true,

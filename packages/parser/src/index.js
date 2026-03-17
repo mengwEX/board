@@ -1,16 +1,16 @@
 /**
  * @promptu/parser
- * 解析 .ptu 文件为 AST
+ * 解析 .board 文件为 AST
  */
 
 import { parseYaml } from './yaml.js'
 import { parseTemplate } from './template.js'
 
 /**
- * 解析 .ptu 文件内容
- * @param {string} source - .ptu 文件内容
+ * 解析 .board 文件内容
+ * @param {string} source - .board 文件内容
  * @param {string} [filename] - 文件名（用于错误提示）
- * @returns {PtuAST}
+ * @returns {BoardAST}
  */
 export function parse(source, filename = '<unknown>') {
   const blocks = extractBlocks(source, filename)
@@ -92,7 +92,7 @@ export class ParseError extends Error {
 }
 
 /**
- * @typedef {Object} PtuAST
+ * @typedef {Object} BoardAST
  * @property {string} filename
  * @property {TemplateAST|null} template
  * @property {string|null} script

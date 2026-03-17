@@ -279,8 +279,8 @@ export class PromptuRuntime {
   }
 
   _emit(event, payload) {
-    // 跨实例通信预留，当前版本触发到全局事件总线
-    // TODO: 实现进程级 EventBus
+    // 跨实例通信：当前版本将 emit 路由为内部钩子事件
+    // 未来可扩展为进程级 EventBus，支持多实例间通信
     this._triggerHook(`emit:${event}`, payload)
   }
 

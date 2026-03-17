@@ -96,8 +96,8 @@ await board.destroy()
 | Package | Description |
 |---------|-------------|
 | `@board/core` | SDK — `createBoard`, `board.update` |
-| `@promptu/runtime` | Reactive runtime, hot reload, hook system |
-| `@promptu/parser` | `.board` file parser |
+| `@board/runtime` | Reactive runtime, hot reload, hook system |
+| `@board/parser` | `.board` file parser |
 
 ## Status
 
