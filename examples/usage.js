@@ -7,7 +7,7 @@
 
 import { createBoard } from '@board/core'
 
-const board = await createBoard('./main.board')
+const board = await createBoard('./assistant.board')
 
 // 传入任意结构的输入
 // .board 里的 on('update') 钩子负责处理

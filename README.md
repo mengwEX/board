@@ -83,6 +83,10 @@ on('update', (input) => {
 // session(key, val) — persists entire session
 // inject(key)       — read session value
 // drop(data)        — discard
+
+// event system (within script)
+// emit(event, payload)         — fire a named event
+// on('emit:myEvent', handler)  — listen to emitted events
 </script>
 
 <config>
@@ -149,6 +153,28 @@ board.getContext()
 // cleanup
 await board.destroy()
 ```
+
+### Script hooks
+
+Inside a `.board` `<script>`, these lifecycle hooks are available:
+
+| Hook | When it fires |
+|------|---------------|
+| `on('mount', fn)` | After board loads (and after hot-reload) |
+| `on('update', fn)` | Each `board.update(input)` call |
+| `on('destroy', fn)` | On `board.destroy()` |
+| `on('emit:name', fn)` | When `emit('name', payload)` is called from script |
+
+### Script context APIs
+
+| API | Description |
+|-----|-------------|
+| `turn(data, opts?)` | Route data to current turn only (auto-discarded after render) |
+| `history(data, opts?)` | Append to conversation history (`opts`: `role`, `priority`) |
+| `session(key, value)` | Store a value for the session lifetime |
+| `inject(key)` | Read a session-stored value |
+| `drop(data)` | Explicitly discard data (no-op, for clarity) |
+| `emit(event, payload)` | Fire a named event; listen with `on('emit:event', fn)` |
 
 ## Packages
 
