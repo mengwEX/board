@@ -7,3 +7,4 @@ dist/
 # OpenSpec — internal design proposals, not for public repo
 openspec/changes/*/
 openspec/specs/*/
+packages/core/test/tmp/
