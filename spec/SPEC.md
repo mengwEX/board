@@ -1,18 +1,18 @@
-# Promptu Language Specification
+# Board Language Specification
 
 > Version: 0.2.0-draft
 
 ## 1. 核心理念
 
-Promptu 是一个运行在 Agent 框架内的**请求组装状态机**。
+Board 是一个运行在 Agent 框架内的**请求组装状态机**。
 
 ```
 LLM 回复（含工具结果）
         ↓ 输入
 ┌───────────────────────────┐
-│      Promptu Runtime      │
+│       Board Runtime       │
 │                           │
-│  .ptu 文件定义的状态机    │
+│  .board 文件定义的状态机  │
 │  · script 处理输入/维护状态│
 │  · template 声明请求结构  │
 │  · 响应式：状态变 → 请求变│
@@ -24,17 +24,17 @@ LLM 回复（含工具结果）
       LLM API
 ```
 
-**一句话：ptu 项目接管了 Agent 框架原本负责组装 LLM 请求的部分。**
+**一句话：Board 接管了 Agent 框架原本负责组装 LLM 请求的部分。**
 
-AI 可以在运行时新建或修改 `.ptu` 文件，**文件变化自动接入当前状态机**，无需重启、无需注册、无需新 session。这是 AI 自驱动迭代的基础。
+AI 可以在运行时新建或修改 `.board` 文件，**文件变化自动接入当前状态机**，无需重启、无需注册、无需新 session。这是 AI 自驱动迭代的基础。
 
 ---
 
 ## 2. 文件结构
 
-一个 `.ptu` 文件由三个块组成：
+一个 `.board` 文件由三个块组成：
 
-```ptu
+```board
 <template>
   <!-- 声明 LLM 请求的内容结构 -->
   <!-- 支持变量插值，响应式绑定 script 中的状态 -->
@@ -67,7 +67,7 @@ Template 描述的是**整个 LLM 请求的内容**，最终编译为：
 
 ### 3.1 三个内容区
 
-```ptu
+```board
 <template>
   <system>
     You are {{ role }}.
@@ -95,22 +95,22 @@ Template 描述的是**整个 LLM 请求的内容**，最终编译为：
 
 ### 3.2 响应式插值
 
-```ptu
+```board
 {{ variable }}        <!-- script 中的变量，变了自动更新 -->
 {{ expr.method() }}   <!-- JS 表达式 -->
 ```
 
 ### 3.3 子组件嵌入
 
-```ptu
-<include src="./tool-context.ptu" :data="activeTools" />
+```board
+<include src="./tool-context.board" :data="activeTools" />
 ```
 
 子组件渲染结果内联到当前位置。
 
 ### 3.4 条件与循环
 
-```ptu
+```board
 <if :condition="hasContext">
   Background: {{ contextSummary }}
 </if>
@@ -124,15 +124,13 @@ Template 描述的是**整个 LLM 请求的内容**，最终编译为：
 
 ## 4. Script 块
 
-标准 Node.js ESM。Promptu 在此基础上注入生命周期 API 和 context 分流 API。
+标准 Node.js ESM。Board 在此基础上注入生命周期 API 和 context 分流 API。
 
 ### 4.1 Context 分流
 
 工具返回结果后，AI 声明每块数据的去向：
 
 ```js
-import { turn, history, session, drop } from '@promptu/context'
-
 on('tool_response', (result) => {
   session(result.user_id)      // 整个 session 保留
   history(result.summary)      // 进历史消息
@@ -165,7 +163,7 @@ on('llm_response', (response) => {
 })
 
 on('mount', () => {
-  // 此 .ptu 文件被加载/更新时触发
+  // 此 .board 文件被加载/更新时触发
 })
 ```
 
@@ -205,9 +203,6 @@ import path from 'path'
 import axios from 'axios'
 import { z } from 'zod'
 
-// 其他 .ptu 组件
-import ToolPanel from './tool-panel.ptu'
-
 // 已有业务脚本直接复用
 import { parseResult } from './tools/parser.js'
 ```
@@ -240,33 +235,33 @@ description: 主助手组件，处理通用对话
 
 ```
 my-agent/
-├── promptu.config.js   # 项目入口配置
-├── main.ptu            # 默认激活的根组件
-├── search.ptu          # 搜索场景组件
-├── code.ptu            # 代码场景组件
+├── board.config.js   # 项目入口配置
+├── main.board        # 默认激活的根组件
+├── search.board      # 搜索场景组件
+├── code.board        # 代码场景组件
 ├── components/
-│   ├── tool-panel.ptu  # 可复用子组件
-│   └── history.ptu
+│   ├── tool-panel.board  # 可复用子组件
+│   └── history.board
 └── tools/
-    ├── search.js       # 普通 JS 工具脚本
+    ├── search.js     # 普通 JS 工具脚本
     └── parser.js
 ```
 
 ### 6.1 文件即接入
 
-Runtime 监听项目目录。任何 `.ptu` 文件的新建或修改：
+Runtime 监听项目目录。任何 `.board` 文件的新建或修改：
 - 立即解析并注册到状态机
 - 当前 session 下一轮请求即可使用
 - 无需重启，无需注册，无需新 session
 
-**这是 AI 自驱动的核心机制。** AI 写完 `.ptu` 文件，下一轮就生效。
+**这是 AI 自驱动的核心机制。** AI 写完 `.board` 文件，下一轮就生效。
 
 ### 6.2 入口配置
 
 ```js
-// promptu.config.js
+// board.config.js
 export default {
-  entry: './main.ptu',         // 默认入口组件
+  entry: './main.board',       // 默认入口组件
   watchDir: './',              // 监听目录
   context: {
     sessionStore: 'memory',    // session 存储方式
@@ -279,7 +274,7 @@ export default {
 
 ## 7. Runtime 完整工作流
 
-Promptu Runtime 接管从 **LLM 回复** 到 **下一次 LLM 请求发出** 的完整区间。
+Board Runtime 接管从 **LLM 回复** 到 **下一次 LLM 请求发出** 的完整区间。
 
 ```
 LLM 回复
@@ -303,16 +298,16 @@ LLM 回复
           ↓
   template 响应式重新渲染
           ↓
-  输出 { system, messages, tools }
+  输出由 template 结构决定（可以是任意结构）
           ↓
         LLM API
 ```
 
-**关键原则：工具执行由 Promptu Runtime 自己负责，不依赖宿主框架。**
+**关键原则：工具执行由 Board Runtime 自己负责，不依赖宿主框架。**
 
 宿主框架（OpenClaw 等）只需做两件事：
-1. 把 LLM 原始回复交给 Promptu Runtime
-2. 把 Promptu Runtime 输出的 `{ system, messages, tools }` 发给 LLM API
+1. 把 LLM 原始回复交给 Board Runtime
+2. 把 Board Runtime 的输出发给 LLM API
 
 ---
 
@@ -320,7 +315,7 @@ LLM 回复
 
 工具在 `<config>` 中声明 schema（告诉 LLM 有哪些工具），在 `<script>` 中实现执行逻辑：
 
-```ptu
+```board
 <script>
 import { webSearch } from './tools/search.js'  // 工具实现
 
@@ -360,21 +355,21 @@ Runtime 查 <config>.tools 找到 web_search
 
 ## 9. 与 Skill 机制的完整对比
 
-| | Skill（现在） | Promptu |
+| | Skill（现在） | Board |
 |--|------------|---------|
 | 工具描述 | SKILL.md 自然语言 | `<config>.tools` 结构化声明 |
 | 工具执行 | 宿主框架调度 skill 脚本 | Runtime 自己调度，handler 在 script 里 |
 | 结果处理 | 全部自动进历史 | `turn/history/session/drop` 精细控制 |
 | 请求组装 | 框架固定逻辑 | template 响应式渲染，AI 完全控制 |
 | 运行时更新 | 需要新 session | 文件变化立即生效 |
-| AI 自创建工具 | 写 SKILL.md，下个 session 生效 | 写 .ptu，当前 session 立即生效 |
+| AI 自创建工具 | 写 SKILL.md，下个 session 生效 | 写 .board，当前 session 立即生效 |
 | exec 调用 | 框架处理，AI 无法控制结果 | Runtime 拦截，`on('exec_response')` 控制分流 |
 
 ---
 
-## 9. 多实例模型
+## 10. 多实例模型
 
-每个 `.ptu` 根组件实例是一个**独立的流程单元**：
+每个 `.board` 根组件实例是一个**独立的流程单元**：
 
 - 拥有独立的状态空间，实例之间完全隔离
 - 类似操作系统进程：互不影响，不共享内存
@@ -382,23 +377,23 @@ Runtime 查 <config>.tools 找到 web_search
 - 组件复用通过子组件 `<include>` 实现，不是实例共享
 
 ```
-实例A: search.ptu ──emit('result')──┐
-                                    ├── 跨实例通信
-实例B: code.ptu ────on('result')────┘
+实例A: search.board ──emit('result')──┐
+                                      ├── 跨实例通信
+实例B: code.board ────on('result')────┘
 
 实例A 和 实例B 状态完全隔离
 ```
 
-使用方应保证：一个 `.ptu` 根实例管理一个完整流程。新流程新建实例，可复用子组件但不共享状态。
+使用方应保证：一个 `.board` 根实例管理一个完整流程。新流程新建实例，可复用子组件但不共享状态。
 
 ---
 
-## 10. 已定设计决策
+## 11. 已定设计决策
 
 | # | 问题 | 决策 |
 |---|------|------|
 | 1 | `<messages>` 不写时默认行为 | 带全部历史，显式写才覆盖 |
 | 2 | history 超 token 压缩策略 | `history(data, { priority: 'low' })` 声明优先级，低优先级先被截断 |
-| 3 | session 数据存储 | 业务侧自行处理，Promptu 只提供语义 API |
+| 3 | session 数据存储 | 业务侧自行处理，Board 只提供语义 API |
 | 4 | 多实例并存 | 进程级隔离，跨实例用 emit/on |
 | 5 | AI 生成组件安全沙箱 | 初期不做，config 预留 `sandbox: true` 字段 |

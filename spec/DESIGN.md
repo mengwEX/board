@@ -156,7 +156,7 @@ const output = await board.update(input)
 // 切换 .board 文件
 await board.load('./other.board')
 
-// ���试
+// 调试
 board.getState()
 
 // 清理
