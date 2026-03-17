@@ -177,11 +177,14 @@ export class PromptuRuntime {
   // --- Render ---
 
   _render() {
-    return renderTemplate(
+    const result = renderTemplate(
       this._ast?.template ?? null,
       this._state,
       this._ctx
     )
+    // Flush turn-scoped data after each render cycle
+    this._ctx.flushTurn()
+    return result
   }
 
   // --- Hook trigger ---

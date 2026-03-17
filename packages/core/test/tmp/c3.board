@@ -1,0 +1,12 @@
+
+<template>
+  <out>{{ val }}</out>
+</template>
+<script>
+let val = ''
+
+on('update', (input) => {
+  turn(input.data)
+  val = input.data
+})
+</script>

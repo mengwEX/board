@@ -1,0 +1,7 @@
+
+<template>
+  <output>{{ value }}</output>
+</template>
+<script>
+let value = 'hello'
+</script>

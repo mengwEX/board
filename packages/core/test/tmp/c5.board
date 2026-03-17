@@ -1,0 +1,8 @@
+
+<template>
+  <out>{{ count }}</out>
+</template>
+<script>
+let count = 0
+on('update', () => { count++ })
+</script>

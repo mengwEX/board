@@ -7,7 +7,7 @@
     ".": "./src/index.js"
   },
   "scripts": {
-    "test": "echo 'No tests for @board/core yet'"
+    "test": "node test/core.test.js"
   },
   "dependencies": {
     "@promptu/runtime": "*"

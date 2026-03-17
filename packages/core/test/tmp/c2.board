@@ -1,0 +1,15 @@
+
+<template>
+  <system>You are {{ role }}.</system>
+  <messages>
+    <message role="user">{{ msg }}</message>
+  </messages>
+</template>
+<script>
+let role = 'an AI assistant'
+let msg = ''
+
+on('update', (input) => {
+  msg = input.text ?? ''
+})
+</script>
