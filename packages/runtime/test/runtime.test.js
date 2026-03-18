@@ -483,6 +483,50 @@ await test('<include src="..."> missing file shows error placeholder', async () 
   await board.destroy()
 })
 
+// ─── Test: <if> inside messages section conditionally renders messages ──────
+
+await test('<if> inside messages section conditionally renders/hides messages', async () => {
+  const board = await createTestBoard('if_in_messages.board', `
+<template>
+  <messages>
+    {{ history }}
+    <if :condition="showSystem">
+      <message role="system">You are {{ role }}.</message>
+    </if>
+    <message role="user">{{ userInput }}</message>
+  </messages>
+</template>
+
+<script>
+let history = []
+let showSystem = false
+let role = 'assistant'
+let userInput = ''
+
+on('update', (input) => {
+  userInput = input.message ?? ''
+  showSystem = input.showSystem ?? false
+  role = input.role ?? 'assistant'
+})
+</script>
+`)
+
+  // showSystem=false — system message should be absent
+  let result = await board.update({ message: 'hello', showSystem: false })
+  assert(Array.isArray(result.messages), 'messages should be array')
+  assert(result.messages.length === 1, `should have 1 message when showSystem=false, got ${result.messages.length}`)
+  assert(result.messages[0].role === 'user', 'only message should be user')
+
+  // showSystem=true — system message should appear
+  result = await board.update({ message: 'hello', showSystem: true, role: 'pirate' })
+  assert(result.messages.length === 2, `should have 2 messages when showSystem=true, got ${result.messages.length}`)
+  assert(result.messages[0].role === 'system', 'first message should be system')
+  assert(result.messages[0].content.includes('pirate'), `system content should contain role, got: "${result.messages[0].content}"`)
+  assert(result.messages[1].role === 'user', 'second message should be user')
+
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════
@@ -495,3 +539,4 @@ if (failed > 0) {
 } else {
   console.log('\n✅ All tests passed')
 }
+

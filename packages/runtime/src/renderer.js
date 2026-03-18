@@ -167,6 +167,12 @@ function renderMessagesNodes(nodes, state, ctx) {
       const role = node.role?.value ?? 'user'
       const content = renderNodes(node.children, state, ctx).trim()
       if (content) messages.push({ role, content })
+    } else if (node.type === 'if') {
+      const cond = node.condition ? evalAttr(node.condition, state) : false
+      if (cond) {
+        const sub = renderMessagesNodes(node.children, state, ctx)
+        messages.push(...sub)
+      }
     } else if (node.type === 'each') {
       const items = node.items ? evalAttr(node.items, state) : []
       const asName = node.as?.value ?? 'msg'
