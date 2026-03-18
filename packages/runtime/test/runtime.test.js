@@ -403,6 +403,43 @@ await test('process/processUserMessage methods do not exist', async () => {
   await board.destroy()
 })
 
+// ─── Test 12: <user> and <assistant> shorthand tags render correctly ─────
+
+await test('<user> and <assistant> shorthand render as message objects', async () => {
+  const board = await createTestBoard('t12.board', `
+<template>
+  <messages>
+    {{ history }}
+    <user>{{ currentMsg }}</user>
+    <assistant>{{ lastReply }}</assistant>
+  </messages>
+</template>
+
+<script>
+let history = []
+let currentMsg = ''
+let lastReply = ''
+
+on('update', (input) => {
+  currentMsg = input.message
+  lastReply = input.lastReply ?? ''
+  history = input.history ?? []
+})
+</script>
+`)
+
+  const result = await board.update({ message: 'hello', lastReply: 'hi there', history: [] })
+
+  assert(Array.isArray(result.messages), 'messages should be array')
+  assert(result.messages.length === 2, 'should have 2 messages')
+  assert(result.messages[0].role === 'user', 'first message role: user')
+  assert(result.messages[0].content === 'hello', 'first message content: hello')
+  assert(result.messages[1].role === 'assistant', 'second message role: assistant')
+  assert(result.messages[1].content === 'hi there', 'second message content: hi there')
+
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════

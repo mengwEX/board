@@ -157,7 +157,7 @@ function findTagStart(source, from) {
 }
 
 /**
- * 解析一个标签节点（<if>, <each>, <include>, <message>）
+ * 解析一个标签节点（<if>, <each>, <include>, <message>, <user>, <assistant>）
  */
 function parseTag(source, start) {
   // 自闭合标签：<include src="..." />
@@ -170,12 +170,23 @@ function parseTag(source, start) {
     }
   }
 
-  // 开放标签：<if>, <each>, <message>
-  const openTag = /^<(if|each|message|user|assistant)\s([^>]*)>/i.exec(source.slice(start))
+  // 开放标签：<if>, <each>, <message>, <user>, <assistant>
+  // 属性部分可选（允许 <user> / <assistant> 不带任何属性直接 >）
+  const openTag = /^<(if|each|message|user|assistant)(\s[^>]*)?>/.exec(source.slice(start))
   if (!openTag) return null
 
   const tagName = openTag[1].toLowerCase()
-  const attrs = parseAttrs(openTag[2])
+  const attrs = parseAttrs(openTag[2] ?? '')
+
+  // <user> / <assistant> 作为 message 节点的语法糖，自动补 role（若未显式指定）
+  if ((tagName === 'user' || tagName === 'assistant') && !attrs.role) {
+    attrs.role = { type: 'static', value: tagName }
+  }
+  // <message> 若未指定 role，默认 'user'
+  if (tagName === 'message' && !attrs.role) {
+    attrs.role = { type: 'static', value: 'user' }
+  }
+
   const contentStart = start + openTag[0].length
   const closeTag = `</${tagName}>`
   const closeIdx = source.indexOf(closeTag, contentStart)
@@ -184,7 +195,9 @@ function parseTag(source, start) {
   const innerSource = source.slice(contentStart, closeIdx)
   const children = parseNodes(innerSource)
 
-  const node = { type: tagName, ...attrs, children }
+  // user/assistant 统一映射为 message 类型
+  const nodeType = (tagName === 'user' || tagName === 'assistant') ? 'message' : tagName
+  const node = { type: nodeType, ...attrs, children }
   return { node, end: closeIdx + closeTag.length }
 }
 

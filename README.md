@@ -113,10 +113,23 @@ The above produces:
 |---|---|
 | Top-level `<tag>...</tag>` | `output.tag = ...` |
 | Single `{{ expr }}` → object/array | Value preserved as-is |
-| `<message>` nodes inside section | Rendered to `[{ role, content }]` array |
+| `<message role="...">` inside section | Rendered to `[{ role, content }]` array |
+| `<user>` / `<assistant>` inside section | Shorthand for `<message role="user/assistant">` |
 | Plain text / mixed nodes | Rendered to trimmed string |
 | No top-level tags, raw content | Direct value (string or typed) |
 | Empty template / no template | `{}` |
+
+`<user>` and `<assistant>` are syntax sugar for `<message role="...">` — they can be mixed freely:
+
+```board
+<template>
+  <messages>
+    {{ history }}
+    <user>{{ userInput }}</user>
+    <assistant>{{ lastReply }}</assistant>
+  </messages>
+</template>
+```
 
 ### Custom section names
 

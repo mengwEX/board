@@ -245,7 +245,48 @@ test('text + interpolation rawNodes', () => {
   assert(ast.template.rawNodes.some(n => n.type === 'interpolation'), 'should have interpolation')
 })
 
-// ─── Test 10: no template block ──────────────────────────────────────────
+// ─── Test 10: <user> and <assistant> shorthand tags ──────────────────────
+
+test('<user> and <assistant> shorthand inside messages section', () => {
+  const source = `
+<template>
+  <messages>
+    {{ history }}
+    <user>{{ currentMsg }}</user>
+    <assistant>{{ lastReply }}</assistant>
+  </messages>
+</template>
+`
+  const ast = parse(source, 'shorthand.board')
+
+  assert(ast.template.sections.length === 1, 'should have 1 section')
+  assert(ast.template.sections[0].name === 'messages', 'section: messages')
+
+  const nodes = ast.template.sections[0].nodes
+  const msgNodes = nodes.filter(n => n.type === 'message')
+  assert(msgNodes.length === 2, 'should have 2 message nodes')
+  assert(msgNodes[0].role.value === 'user', 'first node role: user')
+  assert(msgNodes[1].role.value === 'assistant', 'second node role: assistant')
+})
+
+// ─── Test 11: <user> with explicit role override ──────────────────────────
+
+test('<user> with explicit role="system" override', () => {
+  const source = `
+<template>
+  <messages>
+    <user role="system">{{ sysMsg }}</user>
+  </messages>
+</template>
+`
+  const ast = parse(source, 'role-override.board')
+  const nodes = ast.template.sections[0].nodes
+  const msgNodes = nodes.filter(n => n.type === 'message')
+  assert(msgNodes.length === 1, 'should have 1 message node')
+  assert(msgNodes[0].role.value === 'system', 'explicit role override should be respected')
+})
+
+// ─── Test 12: no template block ──────────────────────────────────────────
 
 test('no template block', () => {
   const source = `
