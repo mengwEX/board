@@ -124,12 +124,26 @@ export class PromptuRuntime {
       __state__: this._state,
     }
 
+    // All context API names available in script scope.
+    const ALL_API_NAMES = ['on', 'emit', 'inject', 'turn', 'history', 'session', 'drop']
+
     const topLevelNames = extractTopLevelNames(scriptSource)
 
-    // Rewrite let/const/var declarations to __state__ property access
-    // so that on() hook modifications directly update this._state
+    // API names that the user also declared as state variables.
+    // These conflict with the destructured API bindings, so we must NOT
+    // destructure them — instead expose them through __api__.<name>.
+    const conflictingApiNames = new Set(
+      ALL_API_NAMES.filter(name => topLevelNames.includes(name))
+    )
+
+    // Non-conflicting API names can be safely destructured into scope.
+    const safeApiNames = ALL_API_NAMES.filter(name => !conflictingApiNames.has(name))
+
     let rewrittenScript = scriptSource
 
+    // Step 1: Rewrite let/const/var declarations to __state__ property access
+    // so that on() hook modifications directly update this._state.
+    // Do this BEFORE identifier substitution to avoid double-rewriting.
     for (const name of topLevelNames) {
       // let x = value  ->  __state__.x = value
       rewrittenScript = rewrittenScript.replace(
@@ -143,15 +157,42 @@ export class PromptuRuntime {
       )
     }
 
-    // Replace standalone identifier references with __state__.name
+    // Step 2: For conflicting names, rewrite API *calls* (name followed by `(`)
+    // to use __api__.<name> BEFORE the general state-var substitution, so we can
+    // distinguish "call site" (API) from "read/write" (state var).
+    for (const name of conflictingApiNames) {
+      // name(...) → __api__.name(...)  (not preceded by . or word char)
+      rewrittenScript = rewrittenScript.replace(
+        new RegExp('(?<![.\\w])' + name + '(?=\\s*\\()', 'g'),
+        '__api__.' + name
+      )
+    }
+
+    // Step 3: Replace remaining bare identifier references with __state__.name.
+    // For non-conflicting API names: they're in scope as destructured consts — skip.
+    // For conflicting API names: API call sites are already __api__.xxx; remaining
+    //   bare references are state-var reads/writes → rewrite to __state__.xxx.
+    //
+    // Two passes per name:
+    //   a) spread syntax: `...name` → `...__state__.name`
+    //      (lookbehind can't distinguish `...` from `.`, so handle explicitly first)
+    //   b) remaining bare references: not preceded by `.` or word char
+    const safeApiNameSet = new Set(safeApiNames)
     for (const name of topLevelNames) {
+      if (safeApiNameSet.has(name)) continue  // safely destructured in scope, leave as-is
+      // Pass (a): spread operator `...name` → `...__state__.name`
+      rewrittenScript = rewrittenScript.replace(
+        new RegExp('\\.\\.\\.' + name + '(?![\\w])', 'g'),
+        '...__state__.' + name
+      )
+      // Pass (b): other bare references not preceded by `.` or word char
       rewrittenScript = rewrittenScript.replace(
         new RegExp('(?<![.\\w])' + name + '(?![\\w:])', 'g'),
         '__state__.' + name
       )
     }
 
-    // function declarations -> __state__.name = function
+    // Step 4: function declarations -> __state__.name = function
     rewrittenScript = rewrittenScript.replace(
       /^(async\s+)?function\s+(\w+)/gm,
       (match, asyncPrefix, fnName) => {
@@ -162,8 +203,11 @@ export class PromptuRuntime {
       }
     )
 
+    // Destructure only safe (non-conflicting) API names into scope.
+    // Conflicting names remain accessible as __api__.<name>.
+    const destructureList = [...safeApiNames, '__state__'].join(', ')
     const wrappedScript =
-      'const { on, emit, inject, turn, history, session, drop, __state__ } = __api__;\n' +
+      `const { ${destructureList} } = __api__;\n` +
       rewrittenScript
 
     try {
