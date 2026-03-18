@@ -178,7 +178,11 @@ export class PromptuRuntime {
 
   // --- Render ---
 
-  _render() {
+  async _render() {
+    // Pre-pass: resolve <include> nodes before synchronous render
+    if (this._ast?.template) {
+      await this._resolveIncludes(this._ast.template, dirname(this._entryPath))
+    }
     const result = renderTemplate(
       this._ast?.template ?? null,
       this._state,
@@ -187,6 +191,41 @@ export class PromptuRuntime {
     // Flush turn-scoped data after each render cycle
     this._ctx.flushTurn()
     return result
+  }
+
+  /**
+   * Recursively resolve <include src="..."> nodes in the template AST.
+   * Reads the referenced file and stores its content in node._rendered.
+   * @param {object} templateAst
+   * @param {string} baseDir
+   */
+  async _resolveIncludes(templateAst, baseDir) {
+    const allNodes = []
+    if (templateAst.rawNodes) allNodes.push(...templateAst.rawNodes)
+    for (const section of templateAst.sections ?? []) {
+      allNodes.push(...(section.nodes ?? []))
+    }
+    await this._resolveIncludesInNodes(allNodes, baseDir)
+  }
+
+  async _resolveIncludesInNodes(nodes, baseDir) {
+    if (!nodes) return
+    for (const node of nodes) {
+      if (node.type === 'include') {
+        const srcAttr = node.src?.value ?? node.src
+        if (srcAttr) {
+          const filePath = resolve(baseDir, srcAttr)
+          try {
+            node._rendered = await readFile(filePath, 'utf8')
+          } catch (e) {
+            console.warn(`[Board] <include src="${srcAttr}"> failed: ${e.message}`)
+            node._rendered = `[include error: ${srcAttr}]`
+          }
+        }
+      }
+      // Recurse into children
+      if (node.children) await this._resolveIncludesInNodes(node.children, baseDir)
+    }
   }
 
   // --- Hook trigger ---
@@ -228,11 +267,35 @@ export class PromptuRuntime {
  */
 function extractTopLevelNames(source) {
   const names = new Set()
+
+  // Simple identifier: let x, const x, var x
   for (const m of source.matchAll(/^(?:let|const|var)\s+(\w+)/gm)) {
     names.add(m[1])
   }
+
+  // Destructuring: const { a, b } = ... or const { a: renamed } = ...
+  for (const m of source.matchAll(/^(?:let|const|var)\s+\{([^}]+)\}/gm)) {
+    for (const part of m[1].split(',')) {
+      // Handle "key: alias" — we want the alias (the local name)
+      const colonIdx = part.indexOf(':')
+      const localPart = colonIdx !== -1 ? part.slice(colonIdx + 1) : part
+      const name = localPart.trim().replace(/\s*=.*$/, '') // strip default value
+      if (/^\w+$/.test(name)) names.add(name)
+    }
+  }
+
+  // Array destructuring: const [a, b] = ...
+  for (const m of source.matchAll(/^(?:let|const|var)\s+\[([^\]]+)\]/gm)) {
+    for (const part of m[1].split(',')) {
+      const name = part.trim().replace(/\s*=.*$/, '')
+      if (/^\w+$/.test(name)) names.add(name)
+    }
+  }
+
+  // Function declarations
   for (const m of source.matchAll(/^(?:async\s+)?function\s+(\w+)/gm)) {
     names.add(m[1])
   }
+
   return [...names]
 }

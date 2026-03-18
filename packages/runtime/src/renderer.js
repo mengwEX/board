@@ -189,7 +189,10 @@ function evalExpr(expr, state) {
   try {
     const fn = new Function(...Object.keys(state), `return (${expr})`)
     return fn(...Object.values(state))
-  } catch {
+  } catch (e) {
+    if (process.env.BOARD_DEBUG) {
+      console.warn(`[Board] Template expression error: {{ ${expr} }} — ${e.message}`)
+    }
     return ''
   }
 }

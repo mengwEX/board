@@ -171,7 +171,7 @@ Use `<if>` and `<each>` inside sections for dynamic content:
 </template>
 ```
 
-> **Note:** `<include src="..." />` is parsed but not yet implemented — it renders as a placeholder string. Coming in a future release.
+> `<include src="..." />` reads and inlines the referenced file at render time. The path is resolved relative to the `.board` file.
 
 ## API
 

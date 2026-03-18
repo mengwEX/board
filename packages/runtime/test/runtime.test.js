@@ -440,6 +440,49 @@ on('update', (input) => {
   await board.destroy()
 })
 
+// ─── Test: <include> renders file content ────────────────────────────────
+
+await test('<include src="..."> renders included file content', async () => {
+  const { writeFile } = await import('fs/promises')
+  const { join } = await import('path')
+
+  // Write the file to be included
+  const partialPath = join(tmpDir, 'partial.txt')
+  await writeFile(partialPath, 'Hello from partial!')
+
+  const board = await createTestBoard('include_test.board', `
+<template>
+  <system>
+    <include src="partial.txt" />
+  </system>
+</template>
+`)
+
+  const result = await board.update({})
+  assert(typeof result.system === 'string', 'system should be a string')
+  assert(result.system.includes('Hello from partial!'), `system should contain included content, got: "${result.system}"`)
+
+  await board.destroy()
+})
+
+// ─── Test: <include> missing file shows error placeholder ─────────────────
+
+await test('<include src="..."> missing file shows error placeholder', async () => {
+  const board = await createTestBoard('include_missing.board', `
+<template>
+  <system>
+    <include src="does_not_exist.txt" />
+  </system>
+</template>
+`)
+
+  const result = await board.update({})
+  assert(typeof result.system === 'string', 'system should be a string')
+  assert(result.system.includes('[include error:'), `should show error placeholder, got: "${result.system}"`)
+
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════

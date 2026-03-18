@@ -63,7 +63,7 @@ export class Board {
    */
   async update(input) {
     await this._runtime._triggerHook('update', input)
-    return this._runtime._render()
+    return await this._runtime._render()
   }
 
   /**
