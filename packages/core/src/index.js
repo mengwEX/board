@@ -85,6 +85,16 @@ export class Board {
     return this._runtime.getContext()
   }
 
+  /**
+   * 裁剪历史记录，保留最近 maxItems 条。
+   * 低优先级（priority: 'low'）的记录优先被移除。
+   *
+   * @param {number} maxItems - 保留的最大历史条数
+   */
+  trimHistory(maxItems) {
+    this._runtime._ctx.trimHistory(maxItems)
+  }
+
   /** 停止 Runtime，清理资源 */
   async destroy() {
     await this._runtime.stop()

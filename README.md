@@ -191,6 +191,9 @@ board.getState()
 // inspect context: { history, session, turn }
 board.getContext()
 
+// trim history to the most recent N entries (low-priority items removed first)
+board.trimHistory(20)
+
 // cleanup
 await board.destroy()
 ```
