@@ -115,6 +115,8 @@ The above produces:
 | Single `{{ expr }}` → object/array | Value preserved as-is |
 | `<message role="...">` inside section | Rendered to `[{ role, content }]` array |
 | `<user>` / `<assistant>` inside section | Shorthand for `<message role="user/assistant">` |
+| `<if :condition="expr">` | Conditionally renders children when `expr` is truthy |
+| `<each :items="expr" as="item">` | Iterates over array, renders children for each item |
 | Plain text / mixed nodes | Rendered to trimmed string |
 | No top-level tags, raw content | Direct value (string or typed) |
 | Empty template / no template | `{}` |
@@ -144,6 +146,32 @@ Any tag name works — Board imposes no schema:
 ```
 
 → `{ prompt: "...", context: [...], functions: [...] }`
+
+### Conditionals and loops
+
+Use `<if>` and `<each>` inside sections for dynamic content:
+
+```board
+<template>
+  <system>
+    You are {{ role }}.
+    <if :condition="debug">
+      [DEBUG MODE ON]
+    </if>
+  </system>
+
+  <messages>
+    {{ history }}
+    <each :items="examples" as="ex">
+      <user>{{ ex.input }}</user>
+      <assistant>{{ ex.output }}</assistant>
+    </each>
+    <user>{{ userInput }}</user>
+  </messages>
+</template>
+```
+
+> **Note:** `<include src="..." />` is parsed but not yet implemented — it renders as a placeholder string. Coming in a future release.
 
 ## API
 
