@@ -183,6 +183,10 @@ function renderMessagesNodes(nodes, state, ctx) {
           messages.push(...sub)
         }
       }
+    } else if (node.type === 'include') {
+      // <include src="..."> inside messages section: treat rendered content as a user message
+      const content = (node._rendered ?? '').trim()
+      if (content) messages.push({ role: 'user', content })
     }
   }
 

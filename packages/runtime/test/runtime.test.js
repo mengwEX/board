@@ -697,6 +697,37 @@ on('emit:step', (val) => {
   await board.destroy()
 })
 
+// ─── Test: <include> inside messages section renders as user message ─────────
+
+await test('<include src="..."> inside messages section renders as user message', async () => {
+  const { writeFile } = await import('fs/promises')
+  const { join } = await import('path')
+
+  const partialPath = join(tmpDir, 'system-part.txt')
+  await writeFile(partialPath, 'You are a helpful assistant.')
+
+  const board = await createTestBoard('include-in-messages.board', `
+<template>
+  <messages>
+    <include src="system-part.txt" />
+    <user>Hello</user>
+  </messages>
+</template>
+`)
+  const output = await board.update({})
+  assert(Array.isArray(output.messages), 'messages should be array')
+  assert(output.messages.length === 2, 'expected 2 messages, got ' + output.messages.length)
+  assert(
+    output.messages[0].role === 'user' && output.messages[0].content === 'You are a helpful assistant.',
+    'unexpected first message: ' + JSON.stringify(output.messages[0])
+  )
+  assert(
+    output.messages[1].role === 'user' && output.messages[1].content === 'Hello',
+    'unexpected second message: ' + JSON.stringify(output.messages[1])
+  )
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════
