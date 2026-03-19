@@ -728,6 +728,30 @@ await test('<include src="..."> inside messages section renders as user message'
   await board.destroy()
 })
 
+await test('emit() handler can be async and is awaited', async () => {
+  const board = await createTestBoard('emit-async.board', `
+<template>
+  <result>{{ result }}</result>
+</template>
+<script>
+let result = 'none'
+
+on('update', async () => {
+  await emit('fetch', 42)
+})
+
+on('emit:fetch', async (val) => {
+  // Simulate async work (e.g., fetching data)
+  await new Promise(resolve => setTimeout(resolve, 10))
+  result = 'async-' + val
+})
+</script>
+`)
+  const output = await board.update({})
+  assert(output.result === 'async-42', `expected 'async-42', got '${output.result}'`)
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════

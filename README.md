@@ -171,7 +171,28 @@ Use `<if>` and `<each>` inside sections for dynamic content:
 </template>
 ```
 
-> `<include src="..." />` reads and inlines the referenced file at render time. The path is resolved relative to the `.board` file.
+### File includes
+
+`<include src="..." />` reads and inlines the referenced file at render time. The path is resolved relative to the `.board` file.
+
+```board
+<template>
+  <system>
+    <include src="./prompts/base-instructions.txt" />
+    <if :condition="debug">
+      [DEBUG MODE ON]
+    </if>
+  </system>
+
+  <messages>
+    {{ history }}
+    <include src="./prompts/few-shot-examples.txt" />
+    <user>{{ userInput }}</user>
+  </messages>
+</template>
+```
+
+When used inside a `<messages>` section, the included content is treated as a `user` message.
 
 ## API
 
@@ -215,7 +236,7 @@ Inside a `.board` `<script>`, these lifecycle hooks are available:
 |-----|-------------|
 | `turn(data, opts?)` | Route data to current turn only (auto-discarded after render) |
 | `history(data, opts?)` | Append to conversation history (`opts`: `role`, `priority`) |
-| `session(key, value)` | Store a value for the session lifetime |
+| `session(key, value)` | Store a value for the session lifetime; also accepts `session({ key: value })` for bulk writes |
 | `inject(key)` | Read a session-stored value |
 | `drop(data)` | Explicitly discard data (no-op, for clarity) |
 | `emit(event, payload)` | Fire a named event; listen with `on('emit:event', fn)` |

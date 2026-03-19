@@ -111,8 +111,8 @@ export class PromptuRuntime {
         if (!runtime._handlers[event]) runtime._handlers[event] = []
         runtime._handlers[event].push(fn)
       },
-      emit: (event, payload) => {
-        runtime._emit(event, payload)
+      emit: async (event, payload) => {
+        await runtime._emit(event, payload)
       },
       inject: (key) => {
         return runtime._ctx.getSession(key)
@@ -306,8 +306,8 @@ export class PromptuRuntime {
     }
   }
 
-  _emit(event, payload) {
-    this._triggerHook('emit:' + event, payload)
+  async _emit(event, payload) {
+    await this._triggerHook('emit:' + event, payload)
   }
 
   // --- Debug ---
