@@ -623,6 +623,80 @@ on('update', (input) => {
   await board.destroy()
 })
 
+// ─── emit / on('emit:xxx') event system ─────────────────────────────────────
+
+await test('emit() fires on(\'emit:xxx\') handler', async () => {
+  const board = await createTestBoard('emit-basic.board', `
+<template>
+  <result>{{ result }}</result>
+</template>
+<script>
+let result = 'none'
+
+on('update', () => {
+  emit('ping', { value: 42 })
+})
+
+on('emit:ping', (payload) => {
+  result = 'got-' + payload.value
+})
+</script>
+`)
+  const output = await board.update({})
+  assert(output.result === 'got-42', `expected 'got-42', got '${output.result}'`)
+  await board.destroy()
+})
+
+await test('emit() without listener is a no-op (does not throw)', async () => {
+  const board = await createTestBoard('emit-noop.board', `
+<template>
+  <result>{{ result }}</result>
+</template>
+<script>
+let result = 'ok'
+
+on('update', () => {
+  emit('silent', { data: 1 })
+})
+</script>
+`)
+  let threw = false
+  try {
+    await board.update({})
+  } catch {
+    threw = true
+  }
+  assert(!threw, 'emit with no listener should not throw')
+  await board.destroy()
+})
+
+await test('emit() can be called multiple times; all listeners fire', async () => {
+  const board = await createTestBoard('emit-multi.board', `
+<template>
+  <log>{{ log }}</log>
+</template>
+<script>
+let log = []
+
+on('update', (input) => {
+  emit('step', 'a')
+  emit('step', 'b')
+  emit('step', 'c')
+})
+
+on('emit:step', (val) => {
+  log = [...log, val]
+})
+</script>
+`)
+  const output = await board.update({})
+  assert(
+    JSON.stringify(output.log) === JSON.stringify(['a', 'b', 'c']),
+    `expected ['a','b','c'], got ${JSON.stringify(output.log)}`
+  )
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════
