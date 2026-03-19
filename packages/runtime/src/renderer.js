@@ -88,10 +88,17 @@ function isSingleInterpolation(nodes) {
 }
 
 /**
- * 判断节点列表中是否包含 <message> 类型节点
+ * 判断节点列表中是否包含 <message> 类型节点（递归检查 <if>/<each> 子节点）
  */
 function hasMessageNodes(nodes) {
-  return nodes.some(n => n.type === 'message')
+  return nodes.some(n => {
+    if (n.type === 'message') return true
+    // <if> and <each> may contain message nodes in their children
+    if ((n.type === 'if' || n.type === 'each') && n.children) {
+      return hasMessageNodes(n.children)
+    }
+    return false
+  })
 }
 
 // ─── 节点渲染 ───────────────────────────────────────────────────────────────
@@ -175,7 +182,7 @@ function renderMessagesNodes(nodes, state, ctx) {
       }
     } else if (node.type === 'each') {
       const items = node.items ? evalAttr(node.items, state) : []
-      const asName = node.as?.value ?? 'msg'
+      const asName = node.as?.value ?? 'item'
       if (Array.isArray(items)) {
         for (const item of items) {
           const loopState = { ...state, [asName]: item }

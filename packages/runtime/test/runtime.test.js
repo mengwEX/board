@@ -752,6 +752,67 @@ on('emit:fetch', async (val) => {
   await board.destroy()
 })
 
+await test('<each> inside messages section renders items as messages', async () => {
+  const board = await createTestBoard('each-messages.board', `
+<template>
+  <messages>
+    <each :items="examples" as="ex">
+      <user>{{ ex.input }}</user>
+      <assistant>{{ ex.output }}</assistant>
+    </each>
+    <user>{{ userInput }}</user>
+  </messages>
+</template>
+<script>
+let examples = []
+let userInput = ''
+
+on('update', (input) => {
+  examples = input.examples ?? []
+  userInput = input.message ?? ''
+})
+</script>
+`)
+  const output = await board.update({
+    examples: [
+      { input: 'hello', output: 'hi there' },
+      { input: 'bye', output: 'goodbye' },
+    ],
+    message: 'how are you?',
+  })
+  assert(Array.isArray(output.messages), 'messages should be array')
+  assert(output.messages.length === 5, `expected 5 messages, got ${output.messages.length}`)
+  assert(output.messages[0].role === 'user' && output.messages[0].content === 'hello', 'first example user msg')
+  assert(output.messages[1].role === 'assistant' && output.messages[1].content === 'hi there', 'first example assistant msg')
+  assert(output.messages[4].role === 'user' && output.messages[4].content === 'how are you?', 'final user msg')
+  await board.destroy()
+})
+
+await test('<each> inside messages section uses default "item" alias when :as omitted', async () => {
+  const board = await createTestBoard('each-messages-default-as.board', `
+<template>
+  <messages>
+    <each :items="msgs">
+      <user>{{ item.text }}</user>
+    </each>
+  </messages>
+</template>
+<script>
+let msgs = []
+
+on('update', (input) => {
+  msgs = input.msgs ?? []
+})
+</script>
+`)
+  const output = await board.update({ msgs: [{ text: 'first' }, { text: 'second' }] })
+  assert(Array.isArray(output.messages), 'messages should be array')
+  assert(output.messages.length === 2, `expected 2 messages, got ${output.messages.length}`)
+  assert(output.messages[0].content === 'first', `expected 'first', got '${output.messages[0].content}'`)
+  assert(output.messages[1].content === 'second', `expected 'second', got '${output.messages[1].content}'`)
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════
