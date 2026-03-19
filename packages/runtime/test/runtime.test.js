@@ -55,6 +55,7 @@ async function createTestBoard(filename, source) {
     },
     getState() { return runtime.getState() },
     getContext() { return runtime.getContext() },
+    trimHistory(max) { runtime._ctx.trimHistory(max) },
     async destroy() { await runtime.stop() },
   }
 }
@@ -556,6 +557,68 @@ on('update', (input) => {
   assert(state.a === 50, `state.a should be 50, got ${state.a}`)
   assert(state.b === 99, `state.b should be 99, got ${state.b}`)
   assert(state.c === 3, `state.c should be 3, got ${state.c}`)
+
+  await board.destroy()
+})
+
+// ─── Test: <include> nested inside <if> ──────────────────────────────────
+
+await test('<include> inside <if> resolves when condition is true', async () => {
+  const partialPath = join(tmpDir, 'nested_partial.txt')
+  await writeFile(partialPath, 'NESTED OK')
+
+  const board = await createTestBoard('include_if_test.board', `
+<template>
+  <system>
+    <if :condition="show">
+      <include src="nested_partial.txt" />
+    </if>
+  </system>
+</template>
+<script>
+let show = false
+on('update', (input) => { show = input.show })
+</script>
+`)
+
+  await board.update({ show: false })
+  const r1 = await board.update({ show: false })
+  assert(!r1.system.includes('NESTED OK'), 'should not include when condition false')
+
+  const r2 = await board.update({ show: true })
+  assert(r2.system.includes('NESTED OK'), `should include when condition true, got: "${r2.system}"`)
+
+  await board.destroy()
+})
+
+// ─── Test: trimHistory respects priority ─────────────────────────────────
+
+await test('trimHistory removes low-priority items first', async () => {
+  const board = await createTestBoard('trim_history.board', `
+<template>{{ out }}</template>
+<script>
+let out = ''
+on('update', (input) => {
+  history(input.msg, { priority: input.priority ?? 'normal' })
+  out = 'ok'
+})
+</script>
+`)
+
+  await board.update({ msg: 'low-1', priority: 'low' })
+  await board.update({ msg: 'normal-1', priority: 'normal' })
+  await board.update({ msg: 'high-1', priority: 'high' })
+
+  const ctx1 = board.getContext()
+  assert(ctx1.history.length === 3, `should have 3 history items, got ${ctx1.history.length}`)
+
+  board.trimHistory(2)
+  const ctx2 = board.getContext()
+  assert(ctx2.history.length === 2, `should have 2 after trim, got ${ctx2.history.length}`)
+  assert(
+    ctx2.history.every(h => h.content !== 'low-1'),
+    'low-priority item should be removed first'
+  )
 
   await board.destroy()
 })
