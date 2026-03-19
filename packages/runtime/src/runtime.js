@@ -144,18 +144,39 @@ export class PromptuRuntime {
     // Step 1: Rewrite let/const/var declarations to __state__ property access
     // so that on() hook modifications directly update this._state.
     // Do this BEFORE identifier substitution to avoid double-rewriting.
-    for (const name of topLevelNames) {
-      // let x = value  ->  __state__.x = value
-      rewrittenScript = rewrittenScript.replace(
-        new RegExp('^(let|const|var)\\s+' + name + '\\s*=', 'gm'),
-        '__state__.' + name + ' ='
-      )
-      // let x  (no init)  ->  __state__.x = undefined
-      rewrittenScript = rewrittenScript.replace(
-        new RegExp('^(let|const|var)\\s+' + name + '\\s*$', 'gm'),
-        '__state__.' + name + ' = undefined'
-      )
-    }
+    //
+    // Handles three forms:
+    //   a) Single:  let x = value  →  __state__.x = value
+    //   b) No-init: let x          →  __state__.x = undefined
+    //   c) Multi:   let a = 1, b = 2  →  __state__.a = 1; __state__.b = 2
+    //
+    // Destructuring (let { a } = ..., let [a] = ...) is NOT rewritten here;
+    // those variables are still captured via identifier substitution in Step 3.
+    rewrittenScript = rewrittenScript.replace(
+      /^(let|const|var)\s+(.+)$/gm,
+      (fullMatch, keyword, rest) => {
+        // Skip destructuring declarations — leave them as-is; Step 3 handles the identifiers
+        const trimmedRest = rest.trimStart()
+        if (trimmedRest.startsWith('{') || trimmedRest.startsWith('[')) return fullMatch
+
+        // Split into individual declarators at top-level commas
+        const declarators = splitTopLevelCommas(rest)
+        const rewrites = declarators.map(decl => {
+          const t = decl.trim()
+          const eqIdx = t.indexOf('=')
+          if (eqIdx === -1) {
+            // No initialiser: let x  →  __state__.x = undefined
+            const nameMatch = t.match(/^(\w+)/)
+            if (!nameMatch || !topLevelNames.includes(nameMatch[1])) return decl
+            return `__state__.${nameMatch[1]} = undefined`
+          }
+          const nameMatch = t.slice(0, eqIdx).trim().match(/^(\w+)$/)
+          if (!nameMatch || !topLevelNames.includes(nameMatch[1])) return decl
+          return `__state__.${nameMatch[1]} =${t.slice(eqIdx + 1)}`
+        })
+        return rewrites.join(';\n')
+      }
+    )
 
     // Step 2: For conflicting names, rewrite API *calls* (name followed by `(`)
     // to use __api__.<name> BEFORE the general state-var substitution, so we can
@@ -312,9 +333,21 @@ export class PromptuRuntime {
 function extractTopLevelNames(source) {
   const names = new Set()
 
-  // Simple identifier: let x, const x, var x
-  for (const m of source.matchAll(/^(?:let|const|var)\s+(\w+)/gm)) {
-    names.add(m[1])
+  // Simple identifier(s): let x, const x, var x
+  // Also handles multi-declaration: let a = 1, b = 2  →  ['a', 'b']
+  for (const m of source.matchAll(/^(?:let|const|var)\s+(.+)/gm)) {
+    // Split on commas that are not inside brackets/parens/braces to handle
+    // multi-declaration (e.g. let a = 1, b = 2). We do a simple scan:
+    // split at commas at depth-0.
+    const decls = splitTopLevelCommas(m[1])
+    for (const decl of decls) {
+      const trimmed = decl.trim()
+      // Skip destructuring — handled by the passes below
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) continue
+      // Grab identifier before any '=' or end-of-string
+      const nameMatch = trimmed.match(/^(\w+)/)
+      if (nameMatch) names.add(nameMatch[1])
+    }
   }
 
   // Destructuring: const { a, b } = ... or const { a: renamed } = ...
@@ -342,4 +375,25 @@ function extractTopLevelNames(source) {
   }
 
   return [...names]
+}
+
+/**
+ * Split a string on commas that are at the top-level (not inside brackets).
+ * Used to parse multi-variable declarations like `a = 1, b = fn(x, y), c`.
+ */
+function splitTopLevelCommas(str) {
+  const parts = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i]
+    if (ch === '(' || ch === '[' || ch === '{') depth++
+    else if (ch === ')' || ch === ']' || ch === '}') depth--
+    else if (ch === ',' && depth === 0) {
+      parts.push(str.slice(start, i))
+      start = i + 1
+    }
+  }
+  parts.push(str.slice(start))
+  return parts
 }

@@ -527,6 +527,39 @@ on('update', (input) => {
   await board.destroy()
 })
 
+await test('multi-variable declaration (let a = 1, b = 2) reactive state', async () => {
+  const board = await createTestBoard('multi_decl.board', `
+<template>
+  <out>{{ a }},{{ b }},{{ c }}</out>
+</template>
+
+<script>
+let a = 1, b = 2, c = 3
+
+on('update', (input) => {
+  if (input.a !== undefined) a = input.a
+  if (input.b !== undefined) b = input.b
+})
+</script>
+`)
+
+  // Only update b; a and c should keep their initial values
+  let result = await board.update({ b: 99 })
+  assert(result.out === '1,99,3', `expected '1,99,3', got '${result.out}'`)
+
+  // Only update a; b should retain previous value, c unchanged
+  result = await board.update({ a: 50 })
+  assert(result.out === '50,99,3', `expected '50,99,3', got '${result.out}'`)
+
+  // State should contain all three variables
+  const state = board.getState()
+  assert(state.a === 50, `state.a should be 50, got ${state.a}`)
+  assert(state.b === 99, `state.b should be 99, got ${state.b}`)
+  assert(state.c === 3, `state.c should be 3, got ${state.c}`)
+
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════
