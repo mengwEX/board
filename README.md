@@ -253,8 +253,18 @@ Inside a `.board` `<script>`, these lifecycle hooks are available:
 | Package | Description |
 |---------|-------------|
 | `@board/core` | Public SDK — `createBoard`, `board.update` |
-| `@board/runtime` *(internal)* | Reactive runtime, hot reload, hook system |
-| `@board/parser` *(internal)* | `.board` file parser |
+| `@promptu/runtime` *(internal)* | Reactive runtime, hot reload, hook system |
+| `@promptu/parser` *(internal)* | `.board` file parser |
+
+## Debug
+
+Set `BOARD_DEBUG=1` to enable verbose template expression error logging:
+
+```bash
+BOARD_DEBUG=1 node your-script.js
+```
+
+When enabled, template interpolation errors (e.g. undefined variables in `{{ expr }}`) are printed to stderr instead of silently returning `''`.
 
 ## Status
 
