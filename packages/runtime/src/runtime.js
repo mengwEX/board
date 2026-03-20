@@ -80,22 +80,27 @@ export class PromptuRuntime {
       try {
         const watcher = watch(dir, { recursive: true, signal: ac.signal })
         for await (const event of watcher) {
-          if (event.filename && event.filename.endsWith('.board')) {
-            const changed = resolve(dir, event.filename)
-            if (changed === this._entryPath) {
-              console.log('[Promptu] File changed, reloading: ' + event.filename)
-              try {
-                await this._loadFile(this._entryPath)
-                await this._triggerHook('mount')
-              } catch (e) {
-                console.error('[Promptu] Reload failed: ' + e.message)
-              }
+          if (!event.filename) continue
+          const changed = resolve(dir, event.filename)
+          // Reload when the .board entry file changes, or when any
+          // non-.board file in the same directory tree changes (e.g.
+          // included .txt / .md prompt files).
+          const isBoardFile = event.filename.endsWith('.board')
+          const isEntryFile = isBoardFile && changed === this._entryPath
+          const isIncludedFile = !isBoardFile
+          if (isEntryFile || isIncludedFile) {
+            console.log('[Board] File changed, reloading: ' + event.filename)
+            try {
+              await this._loadFile(this._entryPath)
+              await this._triggerHook('mount')
+            } catch (e) {
+              console.error('[Board] Reload failed: ' + e.message)
             }
           }
         }
       } catch (e) {
         if (e.name !== 'AbortError') {
-          console.error('[Promptu] Watch error:', e)
+          console.error('[Board] Watch error:', e)
         }
       }
     })()
@@ -236,7 +241,7 @@ export class PromptuRuntime {
       const fn = new AsyncFn('__api__', wrappedScript)
       await fn(scriptAPI)
     } catch (e) {
-      console.error('[Promptu] Script exec failed (' + filePath + '): ' + e.message)
+      console.error('[Board] Script exec failed (' + filePath + '): ' + e.message)
       throw e
     }
   }
@@ -283,7 +288,7 @@ export class PromptuRuntime {
           try {
             node._rendered = await readFile(filePath, 'utf8')
           } catch (e) {
-            console.warn(`[Board] <include src="${srcAttr}"> failed: ${e.message}`)
+            console.warn(`[Board] <include src="${srcAttr}"> read failed: ${e.message}`)
             node._rendered = `[include error: ${srcAttr}]`
           }
         }
@@ -301,7 +306,7 @@ export class PromptuRuntime {
       try {
         await fn(payload)
       } catch (e) {
-        console.error('[Promptu] on(\'' + event + '\') failed: ' + e.message)
+        console.error('[Board] on(\'' + event + '\') failed: ' + e.message)
       }
     }
   }
