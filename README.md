@@ -252,9 +252,9 @@ Inside a `.board` `<script>`, these lifecycle hooks are available:
 
 | Package | Description |
 |---------|-------------|
-| `@board/core` | SDK — `createBoard`, `board.update` |
-| `@promptu/runtime` | Reactive runtime, hot reload, hook system |
-| `@promptu/parser` | `.board` file parser |
+| `@board/core` | Public SDK — `createBoard`, `board.update` |
+| `@board/runtime` *(internal)* | Reactive runtime, hot reload, hook system |
+| `@board/parser` *(internal)* | `.board` file parser |
 
 ## Status
 

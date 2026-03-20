@@ -1,6 +1,8 @@
 {
   "name": "@board/core",
   "version": "0.1.0",
+  "description": "Reactive context engine for AI agents",
+  "private": false,
   "type": "module",
   "main": "./src/index.js",
   "exports": {
