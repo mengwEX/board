@@ -189,7 +189,9 @@ function parseTag(source, start) {
 
   const contentStart = start + openTag[0].length
   const closeTag = `</${tagName}>`
-  const closeIdx = source.indexOf(closeTag, contentStart)
+  // Find the matching close tag, correctly handling nesting (e.g. <if> inside <if>).
+  // We scan forward counting open/close tags of the same name.
+  const closeIdx = findMatchingClose(source, contentStart, tagName)
   if (closeIdx === -1) throw new Error(`Unclosed <${tagName}>`)
 
   const innerSource = source.slice(contentStart, closeIdx)
@@ -199,6 +201,44 @@ function parseTag(source, start) {
   const nodeType = (tagName === 'user' || tagName === 'assistant') ? 'message' : tagName
   const node = { type: nodeType, ...attrs, children }
   return { node, end: closeIdx + closeTag.length }
+}
+
+/**
+ * Find the position of the matching close tag for a nestable element.
+ *
+ * Starts scanning from `searchStart` inside `source` and tracks open/close
+ * depth so that nested tags of the same name are handled correctly.
+ *
+ * @param {string} source - full source string
+ * @param {number} searchStart - index to start scanning from (just after the opening tag)
+ * @param {string} tagName - tag name to match (e.g. 'if', 'each')
+ * @returns {number} index of the matching `</tagName>`, or -1 if not found
+ */
+function findMatchingClose(source, searchStart, tagName) {
+  const openPat = new RegExp(`<${tagName}(?:\\s[^>]*)?>`, 'g')
+  const closePat = new RegExp(`</${tagName}>`, 'g')
+  let depth = 1
+  let i = searchStart
+
+  while (i < source.length && depth > 0) {
+    openPat.lastIndex = i
+    closePat.lastIndex = i
+    const openMatch = openPat.exec(source)
+    const closeMatch = closePat.exec(source)
+
+    if (!closeMatch) return -1
+
+    if (openMatch && openMatch.index < closeMatch.index) {
+      depth++
+      i = openMatch.index + openMatch[0].length
+    } else {
+      depth--
+      if (depth === 0) return closeMatch.index
+      i = closeMatch.index + closeMatch[0].length
+    }
+  }
+
+  return -1
 }
 
 /**

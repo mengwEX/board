@@ -300,6 +300,51 @@ let x = 1
   assert(typeof ast.script === 'string', 'script should exist')
 })
 
+// ─── Nested tags ─────────────────────────────────────────────────────────────
+
+test('nested <if> inside <if> parses correctly', () => {
+  const source = `
+<template>
+  <system>
+    <if :condition="outer">
+      <if :condition="inner">deep</if>
+      shallow
+    </if>
+  </system>
+</template>
+`
+  const ast = parse(source, 'nested-if.board')
+  const section = ast.template.sections.find(s => s.name === 'system')
+  assert(section !== undefined, 'system section should exist')
+  const outerIf = section.nodes.find(n => n.type === 'if')
+  assert(outerIf !== undefined, 'outer <if> should exist')
+  const innerIf = outerIf.children.find(n => n.type === 'if')
+  assert(innerIf !== undefined, 'inner <if> should exist inside outer <if>')
+  const innerText = innerIf.children.find(n => n.type === 'text')
+  assert(innerText !== undefined && innerText.value.includes('deep'), 'inner <if> content should be "deep"')
+})
+
+test('nested <each> inside <each> parses correctly', () => {
+  const source = `
+<template>
+  <output>
+    <each :items="rows" as="row">
+      <each :items="row.cells" as="cell">{{ cell }}</each>
+    </each>
+  </output>
+</template>
+`
+  const ast = parse(source, 'nested-each.board')
+  const section = ast.template.sections.find(s => s.name === 'output')
+  assert(section !== undefined, 'output section should exist')
+  const outerEach = section.nodes.find(n => n.type === 'each')
+  assert(outerEach !== undefined, 'outer <each> should exist')
+  assert(outerEach.as?.value === 'row', 'outer each alias should be "row"')
+  const innerEach = outerEach.children.find(n => n.type === 'each')
+  assert(innerEach !== undefined, 'inner <each> should exist inside outer <each>')
+  assert(innerEach.as?.value === 'cell', 'inner each alias should be "cell"')
+})
+
 // ─── 结果 ──────────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(40)}`)

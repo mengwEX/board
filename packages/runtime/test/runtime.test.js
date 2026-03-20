@@ -837,6 +837,63 @@ await test('<include role="assistant"> inside messages section uses specified ro
   await board.destroy()
 })
 
+// ─── Nested <if> and <each> ──────────────────────────────────────────────────
+
+await test('nested <if> inside <if> renders correctly', async () => {
+  const board = await createTestBoard('nested-if.board', `
+<template>
+  <system>
+    <if :condition="outer">
+      outer-yes
+      <if :condition="inner">inner-yes</if>
+    </if>
+    base
+  </system>
+</template>
+<script>
+let outer = false
+let inner = false
+on('update', (input) => {
+  outer = input.outer ?? false
+  inner = input.inner ?? false
+})
+</script>
+`)
+  const r1 = await board.update({ outer: false, inner: false })
+  assert(!r1.system.includes('outer-yes'), 'outer=false: should not render outer content')
+  assert(!r1.system.includes('inner-yes'), 'outer=false: should not render inner content')
+  assert(r1.system.includes('base'), 'base text should always render')
+
+  const r2 = await board.update({ outer: true, inner: false })
+  assert(r2.system.includes('outer-yes'), 'outer=true,inner=false: outer content should render')
+  assert(!r2.system.includes('inner-yes'), 'outer=true,inner=false: inner content should not render')
+
+  const r3 = await board.update({ outer: true, inner: true })
+  assert(r3.system.includes('outer-yes'), 'outer=true,inner=true: outer content should render')
+  assert(r3.system.includes('inner-yes'), 'outer=true,inner=true: inner content should render')
+  await board.destroy()
+})
+
+await test('nested <each> inside <each> renders correctly', async () => {
+  const board = await createTestBoard('nested-each.board', `
+<template>
+  <output>
+    <each :items="matrix" as="row"><each :items="row" as="cell">{{ cell }},</each></each>
+  </output>
+</template>
+<script>
+let matrix = []
+on('update', (input) => { matrix = input.matrix ?? [] })
+</script>
+`)
+  const r = await board.update({ matrix: [['a', 'b'], ['c', 'd']] })
+  assert(r.output.includes('a,'), 'should contain a')
+  assert(r.output.includes('b,'), 'should contain b')
+  assert(r.output.includes('c,'), 'should contain c')
+  assert(r.output.includes('d,'), 'should contain d')
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════
