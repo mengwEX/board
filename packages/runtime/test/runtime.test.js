@@ -813,6 +813,30 @@ on('update', (input) => {
   await board.destroy()
 })
 
+// ─── <include> with role attribute inside messages section ─────────────────
+
+await test('<include role="assistant"> inside messages section uses specified role', async () => {
+  const partialPath = join(tmpDir, 'role-include.txt')
+  await writeFile(partialPath, 'I am the assistant response.')
+  const boardSrc = [
+    '<template>',
+    '  <messages>',
+    '    <message role="user">Hello</message>',
+    '    <include src="' + partialPath + '" role="assistant" />',
+    '  </messages>',
+    '</template>',
+    '<script>',
+    '</script>',
+  ].join('\n')
+  const board = await createTestBoard('include-role-test.board', boardSrc)
+  const output = await board.update({})
+  assert(Array.isArray(output.messages), 'messages should be array')
+  assert(output.messages.length === 2, 'expected 2 messages, got ' + output.messages.length)
+  assert(output.messages[1].role === 'assistant', "expected role 'assistant', got '" + output.messages[1].role + "'")
+  assert(output.messages[1].content === 'I am the assistant response.', 'unexpected content: ' + output.messages[1].content)
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════

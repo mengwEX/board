@@ -192,7 +192,14 @@ Use `<if>` and `<each>` inside sections for dynamic content:
 </template>
 ```
 
-When used inside a `<messages>` section, the included content is treated as a `user` message.
+When used inside a `<messages>` section, the included content is treated as a message. The default role is `user`; use the `role` attribute to override:
+
+```board
+<messages>
+  <include src="./prompts/system-note.txt" role="assistant" />
+  <message role="user">{{ userInput }}</message>
+</messages>
+```
 
 ## API
 

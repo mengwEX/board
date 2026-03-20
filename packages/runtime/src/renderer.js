@@ -191,9 +191,11 @@ function renderMessagesNodes(nodes, state, ctx) {
         }
       }
     } else if (node.type === 'include') {
-      // <include src="..."> inside messages section: treat rendered content as a user message
+      // <include src="..."> inside messages section: treat rendered content as a message
+      // role defaults to 'user' but can be overridden with role="assistant" attribute
       const content = (node._rendered ?? '').trim()
-      if (content) messages.push({ role: 'user', content })
+      const role = node.role?.value ?? 'user'
+      if (content) messages.push({ role, content })
     }
   }
 
