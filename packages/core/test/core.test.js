@@ -223,6 +223,61 @@ on('update', () => {
   await board.destroy()
 })
 
+// ─── Test 8: board.off() removes listeners ───────────────────────────────
+
+await test('board.off(event, fn) removes specific listener', async () => {
+  const path = await writeTmp('c8.board', `
+<template>
+  <out>{{ val }}</out>
+</template>
+<script>
+let val = 0
+on('update', () => { val++; emit('tick', val) })
+</script>
+`)
+  const board = await createBoard(path, { watch: false })
+
+  const received = []
+  const handler = (p) => received.push(p)
+  board.on('emit:tick', handler)
+
+  await board.update({})
+  assert(received.length === 1, 'handler fires before off()')
+
+  board.off('emit:tick', handler)
+  await board.update({})
+  assert(received.length === 1, 'handler should not fire after off(fn)')
+
+  await board.destroy()
+})
+
+await test('board.off(event) removes all listeners for event', async () => {
+  const path = await writeTmp('c9.board', `
+<template>
+  <out>{{ val }}</out>
+</template>
+<script>
+let val = 0
+on('update', () => { val++; emit('tick', val) })
+</script>
+`)
+  const board = await createBoard(path, { watch: false })
+
+  const a = []
+  const b = []
+  board.on('emit:tick', (p) => a.push(p))
+  board.on('emit:tick', (p) => b.push(p))
+
+  await board.update({})
+  assert(a.length === 1 && b.length === 1, 'both handlers fire before off()')
+
+  board.off('emit:tick')
+  await board.update({})
+  assert(a.length === 1 && b.length === 1, 'no handlers fire after off() all')
+
+  await board.destroy()
+})
+
 // ─── Results ─────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(50)}`)

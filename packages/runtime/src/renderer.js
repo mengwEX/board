@@ -204,9 +204,20 @@ function renderMessagesNodes(nodes, state, ctx) {
 
 // ─── 表达式求值 ─────────────────────────────────────────────────────────────
 
+// Cache compiled expression functions keyed by "stateKeys|expr".
+// State key sets are stable within a render cycle, so this avoids repeated
+// new Function() calls for the same expression across <each> iterations etc.
+const _exprCache = new Map()
+
 function evalExpr(expr, state) {
   try {
-    const fn = new Function(...Object.keys(state), `return (${expr})`)
+    const stateKeys = Object.keys(state)
+    const cacheKey = stateKeys.join(',') + '|' + expr
+    let fn = _exprCache.get(cacheKey)
+    if (!fn) {
+      fn = new Function(...stateKeys, `return (${expr})`)
+      _exprCache.set(cacheKey, fn)
+    }
     return fn(...Object.values(state))
   } catch (e) {
     if (process.env.BOARD_DEBUG) {

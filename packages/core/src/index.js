@@ -125,6 +125,22 @@ export class Board {
     handlers[event].push(fn)
   }
 
+  /**
+   * 移除外部监听器。传入 fn 时只移除该具体函数；不传 fn 时移除该事件的所有监听器。
+   *
+   * @param {string} event
+   * @param {Function} [fn]
+   */
+  off(event, fn) {
+    const handlers = this._runtime._handlers
+    if (!handlers[event]) return
+    if (fn) {
+      handlers[event] = handlers[event].filter(h => h !== fn)
+    } else {
+      delete handlers[event]
+    }
+  }
+
   /** 停止 Runtime，清理资源 */
   async destroy() {
     await this._runtime.stop()

@@ -228,6 +228,12 @@ await board.emit('name', payload)
 // listen to runtime or emit events from outside
 board.on('emit:name', (payload) => { /* ... */ })
 
+// remove a specific listener
+board.off('emit:name', handler)
+
+// remove all listeners for an event
+board.off('emit:name')
+
 // cleanup
 await board.destroy()
 ```
