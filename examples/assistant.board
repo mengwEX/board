@@ -1,52 +1,72 @@
 <!-- assistant.board — 基础 AI 助手组件示例 -->
 
 <template>
-  You are {{ role }}.
+  <system>
+    You are {{ role }}.
 
-  <if :condition="user !== null">
-  User profile: {{ user.name }}, preferences: {{ user.prefs }}
-  </if>
+    <if :condition="user !== null">
+    User profile: {{ user.name }}, preferences: {{ user.prefs }}
+    </if>
+  </system>
 
-  Current task: {{ task }}
+  <messages>
+    <!-- 历史消息直接展开 -->
+    {{ history }}
 
-  <if :condition="recentHistory.length > 0">
-  Recent context:
-  <each :items="recentHistory" :as="item">
-  - {{ item }}
-  </each>
-  </if>
+    <!-- 工具结果注入（本轮，自动丢弃） -->
+    <if :condition="lastToolResult !== null">
+      <message role="tool">{{ lastToolResult }}</message>
+    </if>
+
+    <!-- 当前用户输入 -->
+    <if :condition="userInput !== ''">
+      <user>{{ userInput }}</user>
+    </if>
+  </messages>
+
+  <tools>
+    <!-- 单个插值保留原始数组类型 -->
+    {{ activeTools }}
+  </tools>
 </template>
 
 <script>
 // 响应式状态（自动更新模板）
 let role = 'a helpful assistant'
-let task = ''
 let user = null
-let recentHistory = []
+let history = []
+let userInput = ''
+let lastToolResult = null
+let activeTools = []
 
 on('mount', () => {
   // 从 session 读取持久化状态
   role = inject('agent_role') ?? 'a helpful assistant'
   user = inject('user') ?? null
+  history = inject('history') ?? []
 })
 
 on('update', (input) => {
   // input 格式由使用方决定
   if (input?.type === 'message') {
-    task = input.content
+    userInput = input.content
+    lastToolResult = null
+
   } else if (input?.type === 'tool_response') {
+    userInput = ''
+    lastToolResult = JSON.stringify(input.result)
+
     // 精细控制数据生命周期
     session('last_tool_result', input.result)   // 整个会话保留
-    turn(input.raw_data)                          // 只这轮用
-    history(input.summary)                        // 进历史
-    drop(input.debug_info)                        // 直接丢弃
+    turn(input.raw_data)                         // 只这轮用
+    history(input.summary, { role: 'tool' })    // 进历史
+    drop(input.debug_info)                       // 直接丢弃
 
-    // 响应式更新
-    task = input.next_task ?? task
-    recentHistory = [...recentHistory.slice(-3), input.summary]
   } else if (input?.type === 'llm_response') {
+    userInput = ''
+    lastToolResult = null
     if (input.finish_reason === 'stop') {
-      history(input.content)
+      history(input.content, { role: 'assistant' })
     }
   }
 })

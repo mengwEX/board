@@ -8,6 +8,9 @@
   "exports": {
     ".": "./src/index.js"
   },
+  "files": [
+    "src/"
+  ],
   "scripts": {
     "test": "node test/core.test.js"
   },
