@@ -66,6 +66,20 @@ export class PromptuRuntime {
     this._handlers = {}
     this._state = {}
 
+    // Update entry path so that hot-reload (and subsequent _startWatch calls)
+    // always track the most recently loaded file.
+    const prevDir = dirname(this._entryPath)
+    this._entryPath = resolve(filePath)
+    const newDir = dirname(this._entryPath)
+
+    // If the new file is in a different directory and watch is active,
+    // restart the watcher so it covers the new directory.
+    if (this._watchEnabled && this._watchAbortController && newDir !== prevDir) {
+      this._watchAbortController.abort()
+      this._watchAbortController = null
+      this._startWatch()
+    }
+
     if (ast.script) {
       await this._execScript(ast.script, filePath)
     }

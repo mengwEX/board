@@ -278,6 +278,32 @@ on('update', () => { val++; emit('tick', val) })
   await board.destroy()
 })
 
+await test('board.load() updates entryPath so hot-reload tracks new file', async () => {
+  // board-A in tmpDir, board-B also in tmpDir but loaded via load()
+  const pathA = await writeTmp('c10a.board', `
+<template>
+  <out>board-A</out>
+</template>
+`)
+  const pathB = await writeTmp('c10b.board', `
+<template>
+  <out>board-B</out>
+</template>
+`)
+  const board = await createBoard(pathA, { watch: false })
+  const r1 = await board.update({})
+  assert(r1.out === 'board-A', 'should render board A initially')
+
+  await board.load(pathB)
+  const r2 = await board.update({})
+  assert(r2.out === 'board-B', 'should render board B after load()')
+
+  // _entryPath should now point to pathB (via runtime internals)
+  assert(board._runtime._entryPath === pathB, 'entryPath should be updated to pathB')
+
+  await board.destroy()
+})
+
 // ─── Results ─────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(50)}`)

@@ -207,7 +207,10 @@ function renderMessagesNodes(nodes, state, ctx) {
 // Cache compiled expression functions keyed by "stateKeys|expr".
 // State key sets are stable within a render cycle, so this avoids repeated
 // new Function() calls for the same expression across <each> iterations etc.
+// Capped at MAX_CACHE_SIZE entries to prevent unbounded growth in long-running
+// processes with many board instances or frequently-changing state shapes.
 const _exprCache = new Map()
+const MAX_CACHE_SIZE = 512
 
 function evalExpr(expr, state) {
   try {
@@ -216,6 +219,10 @@ function evalExpr(expr, state) {
     let fn = _exprCache.get(cacheKey)
     if (!fn) {
       fn = new Function(...stateKeys, `return (${expr})`)
+      // Evict oldest entry when the cache is full (simple FIFO eviction)
+      if (_exprCache.size >= MAX_CACHE_SIZE) {
+        _exprCache.delete(_exprCache.keys().next().value)
+      }
       _exprCache.set(cacheKey, fn)
     }
     return fn(...Object.values(state))
