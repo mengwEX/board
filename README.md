@@ -222,6 +222,12 @@ board.getContext()
 // trim history to the most recent N entries (low-priority items removed first)
 board.trimHistory(20)
 
+// fire a named event from outside (script listens via on('emit:name', fn))
+await board.emit('name', payload)
+
+// listen to runtime or emit events from outside
+board.on('emit:name', (payload) => { /* ... */ })
+
 // cleanup
 await board.destroy()
 ```

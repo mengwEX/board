@@ -174,6 +174,55 @@ on('update', () => { count++ })
   await board.destroy()
 })
 
+// ─── Test 6: board.emit() triggers on('emit:name') handler in script ────
+
+await test('board.emit() triggers script on(\'emit:name\') handler', async () => {
+  const path = await writeTmp('c6.board', `
+<template>
+  <out>{{ received }}</out>
+</template>
+<script>
+let received = ''
+on('emit:ping', (payload) => { received = payload })
+</script>
+`)
+  const board = await createBoard(path, { watch: false })
+
+  await board.emit('ping', 'hello-from-outside')
+  const result = await board.update({})
+  assert(result.out === 'hello-from-outside', 'emit() should trigger script on(\'emit:name\')')
+
+  await board.destroy()
+})
+
+// ─── Test 7: board.on() listens to emit events from script ───────────────
+
+await test('board.on() listens to emit events fired from script', async () => {
+  const path = await writeTmp('c7.board', `
+<template>
+  <out>{{ val }}</out>
+</template>
+<script>
+let val = 0
+on('update', () => {
+  val++
+  emit('tick', val)
+})
+</script>
+`)
+  const board = await createBoard(path, { watch: false })
+
+  const ticks = []
+  board.on('emit:tick', (payload) => { ticks.push(payload) })
+
+  await board.update({})
+  await board.update({})
+  assert(ticks.length === 2, 'board.on() should receive both emit:tick events')
+  assert(ticks[0] === 1 && ticks[1] === 2, 'payloads should match script emit values')
+
+  await board.destroy()
+})
+
 // ─── Results ─────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(50)}`)

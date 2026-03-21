@@ -12,7 +12,7 @@ const board = await createBoard('./assistant.board')
 // 传入任意结构的输入
 // .board 里的 on('update') 钩子负责处理
 const output = await board.update({
-  type: 'tool_result',
+  type: 'tool_response',
   name: 'web_search',
   result: { items: ['...'] },
 })

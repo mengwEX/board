@@ -95,6 +95,36 @@ export class Board {
     this._runtime._ctx.trimHistory(maxItems)
   }
 
+  /**
+   * 从外部触发一个命名事件，等同于 .board script 内调用 emit()。
+   * .board script 里通过 on('emit:name', fn) 监听。
+   *
+   * @param {string} event - 事件名（不含 'emit:' 前缀）
+   * @param {any} [payload]
+   */
+  async emit(event, payload) {
+    await this._runtime._emit(event, payload)
+  }
+
+  /**
+   * 在外部监听运行时事件（lifecycle 或 emit 事件）。
+   * 可用于观察 .board script 内部触发的 emit() 调用。
+   *
+   * 常用事件：
+   *   - 'mount'        : board 加载完毕
+   *   - 'update'       : board.update() 触发时
+   *   - 'destroy'      : board.destroy() 触发时
+   *   - 'emit:<name>'  : script 内 emit('name') 触发时
+   *
+   * @param {string} event
+   * @param {Function} fn
+   */
+  on(event, fn) {
+    const handlers = this._runtime._handlers
+    if (!handlers[event]) handlers[event] = []
+    handlers[event].push(fn)
+  }
+
   /** 停止 Runtime，清理资源 */
   async destroy() {
     await this._runtime.stop()
