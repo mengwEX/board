@@ -923,6 +923,26 @@ on('update', (input) => { matrix = input.matrix ?? [] })
   await board.destroy()
 })
 
+// ─── Test: hook error is re-thrown (not silently swallowed) ──────────────────
+test('hook error propagates out of board.update()', async () => {
+  const board = await createTestBoard('hook-error.board', `
+<template>{{ msg }}</template>
+<script>
+  let msg = 'ok'
+  on('update', () => { throw new Error('hook boom') })
+</script>
+`)
+  let threw = false
+  try {
+    await board.update({})
+  } catch (e) {
+    threw = true
+    assert(e.message === 'hook boom', 'error message should propagate')
+  }
+  assert(threw, 'board.update() should re-throw hook errors')
+  await board.destroy()
+})
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Results
 // ═══════════════════════════════════════════════════════════════════════════

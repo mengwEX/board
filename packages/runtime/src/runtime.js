@@ -339,7 +339,8 @@ export class PromptuRuntime {
       try {
         await fn(payload)
       } catch (e) {
-        console.error('[Board] on(\'' + event + '\') failed: ' + e.message)
+        console.error(`[Board] on('${event}') failed:`, e)
+        throw e
       }
     }
   }
