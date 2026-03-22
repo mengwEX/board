@@ -192,6 +192,20 @@ Use `<if>` and `<each>` inside sections for dynamic content:
 </template>
 ```
 
+Use `:src="expr"` for dynamic paths evaluated against the current state:
+
+```board
+<template>
+  <system>
+    <include :src="`./prompts/${lang}-instructions.txt`" />
+  </system>
+</template>
+<script>
+let lang = 'en'
+on('update', (input) => { lang = input.lang ?? 'en' })
+</script>
+```
+
 When used inside a `<messages>` section, the included content is treated as a message. The default role is `user`; use the `role` attribute to override:
 
 ```board
