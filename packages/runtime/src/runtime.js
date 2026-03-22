@@ -280,6 +280,7 @@ export class PromptuRuntime {
   /**
    * Recursively resolve <include src="..."> nodes in the template AST.
    * Reads the referenced file and stores its content in node._rendered.
+   * Supports both static src="path" and dynamic :src="expr" attributes.
    * @param {object} templateAst
    * @param {string} baseDir
    */
@@ -289,14 +290,32 @@ export class PromptuRuntime {
     for (const section of templateAst.sections ?? []) {
       allNodes.push(...(section.nodes ?? []))
     }
-    await this._resolveIncludesInNodes(allNodes, baseDir)
+    await this._resolveIncludesInNodes(allNodes, baseDir, this._state)
   }
 
-  async _resolveIncludesInNodes(nodes, baseDir) {
+  async _resolveIncludesInNodes(nodes, baseDir, state) {
     if (!nodes) return
     for (const node of nodes) {
       if (node.type === 'include') {
-        const srcAttr = node.src?.value ?? node.src
+        const src = node.src
+        let srcAttr
+        if (src?.type === 'static') {
+          srcAttr = src.value
+        } else if (src?.type === 'dynamic') {
+          // Evaluate dynamic :src="expr" against current state
+          try {
+            const stateKeys = Object.keys(state)
+            const fn = new Function(...stateKeys, `return (${src.expr})`)
+            srcAttr = fn(...Object.values(state))
+          } catch (e) {
+            if (process.env.BOARD_DEBUG) {
+              console.warn(`[Board] <include :src="${src.expr}"> eval error: ${e.message}`)
+            }
+          }
+        } else if (typeof src === 'string') {
+          // Fallback for bare string (should not occur, but be defensive)
+          srcAttr = src
+        }
         if (srcAttr) {
           const filePath = resolve(baseDir, srcAttr)
           try {
@@ -308,7 +327,7 @@ export class PromptuRuntime {
         }
       }
       // Recurse into children
-      if (node.children) await this._resolveIncludesInNodes(node.children, baseDir)
+      if (node.children) await this._resolveIncludesInNodes(node.children, baseDir, state)
     }
   }
 

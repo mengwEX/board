@@ -591,6 +591,35 @@ on('update', (input) => { show = input.show })
   await board.destroy()
 })
 
+// ─── Test: <include :src="expr"> dynamic src ─────────────────────────────
+
+await test('<include :src="expr"> resolves dynamic src against current state', async () => {
+  const fileA = join(tmpDir, 'dynamic_a.txt')
+  const fileB = join(tmpDir, 'dynamic_b.txt')
+  await writeFile(fileA, 'FILE A CONTENT')
+  await writeFile(fileB, 'FILE B CONTENT')
+
+  const board = await createTestBoard('include_dynamic_src.board', `
+<template>
+  <system>
+    <include :src="currentFile" />
+  </system>
+</template>
+<script>
+let currentFile = 'dynamic_a.txt'
+on('update', (input) => { currentFile = input.file })
+</script>
+`)
+
+  const r1 = await board.update({ file: 'dynamic_a.txt' })
+  assert(r1.system.includes('FILE A CONTENT'), `should render file A, got: "${r1.system}"`)
+
+  const r2 = await board.update({ file: 'dynamic_b.txt' })
+  assert(r2.system.includes('FILE B CONTENT'), `should render file B, got: "${r2.system}"`)
+
+  await board.destroy()
+})
+
 // ─── Test: trimHistory respects priority ─────────────────────────────────
 
 await test('trimHistory removes low-priority items first', async () => {
