@@ -254,7 +254,7 @@ Inside a `.board` `<script>`, these lifecycle hooks are available:
 | API | Description |
 |-----|-------------|
 | `turn(data, opts?)` | Route data to current turn only (auto-discarded after render) |
-| `history(data, opts?)` | Append to conversation history (`opts`: `role`, `priority`) |
+| `history(data, opts?)` | Append to conversation history (`opts.role`: `'tool'` default; `opts.priority`: `'high'`/`'normal'`/`'low'` — affects `trimHistory()` eviction order) |
 | `session(key, value)` | Store a value for the session lifetime; also accepts `session({ key: value })` for bulk writes |
 | `inject(key)` | Read a session-stored value |
 | `drop(data)` | Explicitly discard data (no-op, for clarity) |

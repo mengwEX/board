@@ -102,10 +102,12 @@ export class ContextManager {
    */
   trimHistory(maxItems) {
     if (this._history.length <= maxItems) return
-    // low priority 先裁
+    // low priority 先裁；同优先级时按插入顺序（timestamp 越小越先裁）
     const sorted = [...this._history].sort((a, b) => {
       const p = { low: 0, normal: 1, high: 2 }
-      return p[a.priority] - p[b.priority]
+      const pd = p[a.priority] - p[b.priority]
+      if (pd !== 0) return pd
+      return a.timestamp - b.timestamp  // 同优先级：老的优先裁
     })
     const remove = sorted.slice(0, this._history.length - maxItems)
     const removeSet = new Set(remove)
