@@ -345,6 +345,61 @@ test('nested <each> inside <each> parses correctly', () => {
   assert(innerEach.as?.value === 'cell', 'inner each alias should be "cell"')
 })
 
+// ─── Include 标签 ────────────────────────────────────────────────────────────
+
+test('<include src="..."> parses as include node with src attr', () => {
+  const source = `
+<template>
+  <system>
+    <include src="./prompts/base.txt" />
+  </system>
+</template>
+`
+  const ast = parse(source, 'include.board')
+  const section = ast.template.sections.find(s => s.name === 'system')
+  assert(section !== undefined, 'system section should exist')
+  const includeNode = section.nodes.find(n => n.type === 'include')
+  assert(includeNode !== undefined, '<include> node should be parsed')
+  assert(includeNode.src?.type === 'static', 'src should be a static attr')
+  assert(includeNode.src?.value === './prompts/base.txt', 'src value should match')
+})
+
+test('<include role="assistant"> carries role attribute', () => {
+  const source = `
+<template>
+  <messages>
+    <include src="./note.txt" role="assistant" />
+  </messages>
+</template>
+`
+  const ast = parse(source, 'include-role.board')
+  const section = ast.template.sections.find(s => s.name === 'messages')
+  assert(section !== undefined, 'messages section should exist')
+  const includeNode = section.nodes.find(n => n.type === 'include')
+  assert(includeNode !== undefined, '<include> node should exist')
+  assert(includeNode.role?.value === 'assistant', 'role attr should be "assistant"')
+})
+
+test('<include> inside <if> parses correctly', () => {
+  const source = `
+<template>
+  <system>
+    <if :condition="debug">
+      <include src="./debug.txt" />
+    </if>
+  </system>
+</template>
+`
+  const ast = parse(source, 'include-if.board')
+  const section = ast.template.sections.find(s => s.name === 'system')
+  assert(section !== undefined, 'system section should exist')
+  const ifNode = section.nodes.find(n => n.type === 'if')
+  assert(ifNode !== undefined, '<if> node should exist')
+  const includeNode = ifNode.children.find(n => n.type === 'include')
+  assert(includeNode !== undefined, '<include> should be a child of <if>')
+  assert(includeNode.src?.value === './debug.txt', 'src value should match')
+})
+
 // ─── 结果 ──────────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(40)}`)
