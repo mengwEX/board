@@ -866,6 +866,28 @@ await test('<include role="assistant"> inside messages section uses specified ro
   await board.destroy()
 })
 
+await test('<message :role="expr"> uses dynamic role evaluated from state', async () => {
+  const board = await createTestBoard('dynamic-role-msg.board', `
+<template>
+  <messages>
+    <message :role="currentRole">Hello from dynamic role</message>
+  </messages>
+</template>
+<script>
+let currentRole = 'user'
+on('update', (input) => { currentRole = input.role ?? 'user' })
+</script>
+`)
+  const r1 = await board.update({ role: 'assistant' })
+  assert(Array.isArray(r1.messages), 'messages should be array')
+  assert(r1.messages.length === 1, 'should have 1 message')
+  assert(r1.messages[0].role === 'assistant', "expected 'assistant', got '" + r1.messages[0].role + "'")
+
+  const r2 = await board.update({ role: 'tool' })
+  assert(r2.messages[0].role === 'tool', "expected 'tool', got '" + r2.messages[0].role + "'")
+  await board.destroy()
+})
+
 // ─── Nested <if> and <each> ──────────────────────────────────────────────────
 
 await test('nested <if> inside <if> renders correctly', async () => {

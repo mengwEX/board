@@ -147,7 +147,7 @@ function renderNode(node, state, ctx) {
 
     case 'message': {
       // 在字符串渲染模式下，message 节点渲染为标记文本
-      const role = node.role?.value ?? 'user'
+      const role = evalAttr(node.role, state) ?? 'user'
       const content = renderNodes(node.children, state, ctx).trim()
       return `[MSG:${role}]${content}[/MSG]`
     }
@@ -171,7 +171,7 @@ function renderMessagesNodes(nodes, state, ctx) {
         messages.push(...val)
       }
     } else if (node.type === 'message') {
-      const role = node.role?.value ?? 'user'
+      const role = evalAttr(node.role, state) ?? 'user'
       const content = renderNodes(node.children, state, ctx).trim()
       if (content) messages.push({ role, content })
     } else if (node.type === 'if') {
@@ -194,7 +194,7 @@ function renderMessagesNodes(nodes, state, ctx) {
       // <include src="..."> inside messages section: treat rendered content as a message
       // role defaults to 'user' but can be overridden with role="assistant" attribute
       const content = (node._rendered ?? '').trim()
-      const role = node.role?.value ?? 'user'
+      const role = evalAttr(node.role, state) ?? 'user'
       if (content) messages.push({ role, content })
     }
   }
