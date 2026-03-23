@@ -314,6 +314,14 @@ Inside a `.board` `<script>`, these lifecycle hooks are available:
 | `memory(key, value)` | Set a runtime memory entry; pass `null`/`undefined` to delete the key |
 | `getMemory(key?)` | Read a single entry by key, or get a shallow copy of all entries if key is omitted |
 
+`getMemory` is also available inside template expressions:
+
+```board
+<template>
+  <system>Last tool group: {{ getMemory('lastToolGroup') }}</system>
+</template>
+```
+
 ## Packages
 
 | Package | Description |
