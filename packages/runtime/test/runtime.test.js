@@ -60,6 +60,13 @@ async function createTestBoard(filename, source) {
   }
 }
 
+// Shorthand: create an inline board without specifying a filename.
+// Uses a counter so parallel tests don't share filenames.
+let _inlineBoardCounter = 0
+async function createInlineBoard(source) {
+  return createTestBoard(`inline-${++_inlineBoardCounter}.board`, source)
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Tests
 // ═══════════════════════════════════════════════════════════════════════════
@@ -978,3 +985,273 @@ if (failed > 0) {
   console.log('\n✅ All tests passed')
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ToolRegistry — toolsByGroup / toolsByName / allTools
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('toolsByGroup returns tools matching a single group', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ tools }}</result>
+</template>
+<script>
+let tools = []
+on('update', () => {
+  tools = toolsByGroup('coding')
+})
+</script>
+<config>
+tools:
+  - name: run_code
+    description: Execute code
+    group: coding
+  - name: web_search
+    description: Search the web
+    group: research
+</config>
+`)
+  const out = await board.update({})
+  assert(Array.isArray(out.result), 'result should be array')
+  assert(out.result.length === 1, 'should return 1 tool')
+  assert(out.result[0].name === 'run_code', 'should return run_code')
+  assert(!('group' in out.result[0]), 'group field should be stripped')
+  await board.destroy()
+})
+
+test('toolsByGroup union across multiple groups', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ tools }}</result>
+</template>
+<script>
+let tools = []
+on('update', () => {
+  tools = toolsByGroup('coding', 'research')
+})
+</script>
+<config>
+tools:
+  - name: run_code
+    description: Execute code
+    group: coding
+  - name: web_search
+    description: Search the web
+    group: research
+  - name: send_email
+    description: Send an email
+    group: comms
+</config>
+`)
+  const out = await board.update({})
+  assert(out.result.length === 2, 'should return tools from both groups')
+  const names = out.result.map(t => t.name)
+  assert(names.includes('run_code'), 'should include run_code')
+  assert(names.includes('web_search'), 'should include web_search')
+  await board.destroy()
+})
+
+test('toolsByGroup: tool with array group membership', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ tools }}</result>
+</template>
+<script>
+let tools = []
+on('update', () => {
+  tools = toolsByGroup('coding')
+})
+</script>
+<config>
+tools:
+  - name: multi_tool
+    description: Works in coding and research
+    group:
+      - coding
+      - research
+</config>
+`)
+  const out = await board.update({})
+  assert(out.result.length === 1, 'should match tool in array group')
+  assert(out.result[0].name === 'multi_tool', 'should return multi_tool')
+  await board.destroy()
+})
+
+test('toolsByName returns specific tools', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ tools }}</result>
+</template>
+<script>
+let tools = []
+on('update', () => {
+  tools = toolsByName('web_search')
+})
+</script>
+<config>
+tools:
+  - name: run_code
+    description: Execute code
+    group: coding
+  - name: web_search
+    description: Search the web
+    group: research
+</config>
+`)
+  const out = await board.update({})
+  assert(out.result.length === 1, 'should return 1 tool')
+  assert(out.result[0].name === 'web_search', 'should return web_search')
+  await board.destroy()
+})
+
+test('allTools returns all tools without internal fields', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ tools }}</result>
+</template>
+<script>
+let tools = []
+on('update', () => {
+  tools = allTools()
+})
+</script>
+<config>
+tools:
+  - name: run_code
+    description: Execute code
+    group: coding
+  - name: web_search
+    description: Search the web
+    group: research
+</config>
+`)
+  const out = await board.update({})
+  assert(out.result.length === 2, 'should return all 2 tools')
+  for (const t of out.result) {
+    assert(!('group' in t), 'group field should be stripped from all tools')
+  }
+  await board.destroy()
+})
+
+test('toolsByGroup returns empty array when no config.tools', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ tools }}</result>
+</template>
+<script>
+let tools = []
+on('update', () => {
+  tools = toolsByGroup('coding')
+})
+</script>
+`)
+  const out = await board.update({})
+  assert(Array.isArray(out.result), 'should return array')
+  assert(out.result.length === 0, 'should return empty array when no tools configured')
+  await board.destroy()
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// runtimeMemory — memory() / getMemory()
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('memory() sets value, getMemory() reads it', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ val }}</result>
+</template>
+<script>
+let val = ''
+on('update', (input) => {
+  if (input.set) {
+    memory('screenshot', input.set)
+  }
+  val = getMemory('screenshot') ?? 'none'
+})
+</script>
+`)
+  await board.update({ set: 'img_001' })
+  const out = await board.update({})
+  assert(out.result === 'img_001', 'getMemory should return persisted value')
+  await board.destroy()
+})
+
+test('memory() with null removes the key', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ val }}</result>
+</template>
+<script>
+let val = ''
+on('update', (input) => {
+  if (input.set) memory('key', input.set)
+  if (input.clear) memory('key', null)
+  val = getMemory('key') ?? 'gone'
+})
+</script>
+`)
+  await board.update({ set: 'hello' })
+  await board.update({ clear: true })
+  const out = await board.update({})
+  assert(out.result === 'gone', 'getMemory should return undefined after null')
+  await board.destroy()
+})
+
+test('getMemory() without key returns all memory entries', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ snapshot }}</result>
+</template>
+<script>
+let snapshot = {}
+on('update', (input) => {
+  if (input.a) memory('a', input.a)
+  if (input.b) memory('b', input.b)
+  snapshot = getMemory()
+})
+</script>
+`)
+  await board.update({ a: 'alpha' })
+  const out = await board.update({ b: 'beta' })
+  assert(out.result.a === 'alpha', 'should include a')
+  assert(out.result.b === 'beta', 'should include b')
+  await board.destroy()
+})
+
+test('memory persists across multiple update() calls', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ counter }}</result>
+</template>
+<script>
+let counter = 0
+on('update', () => {
+  const current = getMemory('count') ?? 0
+  memory('count', current + 1)
+  counter = getMemory('count')
+})
+</script>
+`)
+  await board.update({})
+  await board.update({})
+  const out = await board.update({})
+  assert(out.result === 3, 'counter should have incremented 3 times')
+  await board.destroy()
+})
+
+test('getMemory() works in template expressions', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ getMemory('tag') }}</result>
+</template>
+<script>
+on('update', (input) => {
+  if (input.tag) memory('tag', input.tag)
+})
+</script>
+`)
+  await board.update({ tag: 'v2' })
+  const out = await board.update({})
+  assert(out.result === 'v2', 'getMemory should be accessible in template expressions')
+  await board.destroy()
+})

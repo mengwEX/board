@@ -4,8 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "main": "./src/index.js",
+  "types": "./src/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
     "./context": "./src/context.js"
   },
   "scripts": {

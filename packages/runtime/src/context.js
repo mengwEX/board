@@ -14,6 +14,7 @@ export class ContextManager {
     this._turn = []       // 当前轮数据，每轮 flush 后清空
     this._history = []    // 历史消息列表
     this._session = {}    // session 级 KV 存储
+    this._memory = {}     // runtime memory（手动管理，不自动清除）
   }
 
   // ─── 四种分流 API（供 .board script 调用）────────────────────────────────
@@ -87,6 +88,37 @@ export class ContextManager {
    */
   getSession(key) {
     return key ? this._session[key] : { ...this._session }
+  }
+
+  // ─── runtimeMemory API ───────────────────────────────────────────────────
+
+  /**
+   * 设置或清除 runtimeMemory 中的一个值。
+   * 传 null/undefined 表示删除该 key。
+   *
+   * @param {string} key
+   * @param {any} value
+   */
+  memory(key, value) {
+    if (value === null || value === undefined) {
+      delete this._memory[key]
+    } else {
+      this._memory[key] = value
+    }
+  }
+
+  /**
+   * 读取 runtimeMemory 中的值。
+   * 传 key 返回单值；不传 key 返回全部的浅拷贝。
+   *
+   * @param {string} [key]
+   * @returns {any}
+   */
+  getMemory(key) {
+    if (key !== undefined) {
+      return this._memory[key]
+    }
+    return { ...this._memory }
   }
 
   /**

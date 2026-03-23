@@ -2,6 +2,121 @@
  * @board/core — TypeScript type definitions
  */
 
+// ─── Tool Schema ──────────────────────────────────────────────────────────────
+
+/**
+ * A tool schema as exposed to the LLM (internal fields like `group` stripped).
+ */
+export interface ToolSchema {
+  name: string
+  description?: string
+  [key: string]: unknown
+}
+
+/**
+ * A tool entry as declared in `<config> tools:` section.
+ * The `group` field is used for filtering and is stripped from LLM-facing schemas.
+ */
+export interface ToolConfig extends ToolSchema {
+  group?: string | string[]
+}
+
+// ─── Script DSL Context (APIs available inside `.board` `<script>` blocks) ───
+
+/**
+ * APIs injected into `.board` `<script>` execution context.
+ *
+ * These are available as free variables in the script — you do **not**
+ * import or declare them; Board injects them automatically.
+ *
+ * @example
+ * ```board
+ * <script>
+ * let tools = []
+ * on('update', (input) => {
+ *   tools = toolsByGroup('coding')
+ *   memory('lastInput', input)
+ * })
+ * </script>
+ * ```
+ */
+export interface BoardScriptAPI {
+  /** Register a lifecycle/event handler. */
+  on(event: 'mount' | 'update' | 'destroy' | `emit:${string}`, fn: (payload?: unknown) => void): void
+
+  /** Emit a named event (handled by external `board.on()` listeners). */
+  emit(event: string, payload?: unknown): void
+
+  /** Inject a message into conversation history. */
+  inject(data: unknown, opts?: { role?: string; priority?: string }): void
+
+  /** Append data to the current turn buffer (cleared each render). */
+  turn(data: unknown): void
+
+  /** Push an entry into history. */
+  history(data: unknown, opts?: { role?: string; priority?: string }): void
+
+  /** Get or set a session-scoped key-value entry. */
+  session(key: string, value?: unknown): unknown
+
+  /** Drop / remove data from context. */
+  drop(data: unknown): void
+
+  // ── ToolRegistry APIs ──────────────────────────────────────────────────────
+
+  /**
+   * Return tools matching any of the given group names.
+   * Internal fields (`group`, `handler`, etc.) are stripped from results.
+   *
+   * @param groups - One or more group names to match
+   */
+  toolsByGroup(...groups: string[]): ToolSchema[]
+
+  /**
+   * Return tools with the given names.
+   * Internal fields are stripped from results.
+   *
+   * @param names - One or more tool names to look up
+   */
+  toolsByName(...names: string[]): ToolSchema[]
+
+  /**
+   * Return all tools declared in `<config>`.
+   * Internal fields (`group`, `handler`, etc.) are stripped.
+   */
+  allTools(): ToolSchema[]
+
+  // ── Runtime Memory APIs ────────────────────────────────────────────────────
+
+  /**
+   * Set or delete a runtime memory entry.
+   * Unlike `session()`, runtime memory is managed manually and never
+   * cleared automatically between turns.
+   *
+   * Pass `null` or `undefined` as `value` to delete the key.
+   *
+   * @param key   - Memory key
+   * @param value - Value to store (`null`/`undefined` removes the key)
+   *
+   * @example
+   * ```ts
+   * memory('screenshot', 'img_001')  // set
+   * memory('screenshot', null)        // delete
+   * ```
+   */
+  memory(key: string, value: unknown): void
+
+  /**
+   * Read a runtime memory entry.
+   *
+   * - Pass `key` to get a single value (returns `undefined` if not set).
+   * - Omit `key` to get a shallow copy of all entries.
+   *
+   * @param key - Optional memory key
+   */
+  getMemory(key?: string): unknown
+}
+
 // ─── Options ──────────────────────────────────────────────────────────────────
 
 export interface CreateBoardOptions {

@@ -16,6 +16,7 @@ import { resolve, dirname } from 'path'
 import { parse } from '@promptu/parser'
 import { ContextManager } from './context.js'
 import { renderTemplate } from './renderer.js'
+import { ToolRegistry } from './tool-registry.js'
 
 export class PromptuRuntime {
   /**
@@ -62,6 +63,7 @@ export class PromptuRuntime {
 
     this._ast = ast
     this._config = ast.config ?? {}
+    this._toolRegistry = new ToolRegistry(this._config.tools)
 
     this._handlers = {}
     this._state = {}
@@ -140,11 +142,22 @@ export class PromptuRuntime {
       history: (data, opts) => runtime._ctx.history(data, opts),
       session: (key, value) => runtime._ctx.session(key, value),
       drop: (data) => runtime._ctx.drop(data),
+      // tool registry APIs
+      toolsByGroup: (...groups) => runtime._toolRegistry.byGroup(...groups),
+      toolsByName: (...names) => runtime._toolRegistry.byName(...names),
+      allTools: () => runtime._toolRegistry.all(),
+      // runtime memory APIs
+      memory: (key, value) => runtime._ctx.memory(key, value),
+      getMemory: (key) => runtime._ctx.getMemory(key),
       __state__: this._state,
     }
 
     // All context API names available in script scope.
-    const ALL_API_NAMES = ['on', 'emit', 'inject', 'turn', 'history', 'session', 'drop']
+    const ALL_API_NAMES = [
+      'on', 'emit', 'inject', 'turn', 'history', 'session', 'drop',
+      'toolsByGroup', 'toolsByName', 'allTools',
+      'memory', 'getMemory',
+    ]
 
     const topLevelNames = extractTopLevelNames(scriptSource)
 
@@ -267,9 +280,14 @@ export class PromptuRuntime {
     if (this._ast?.template) {
       await this._resolveIncludes(this._ast.template, dirname(this._entryPath))
     }
+    // Expose getMemory in template expression scope (read-only, non-conflicting)
+    const stateWithMemory = {
+      getMemory: (key) => this._ctx.getMemory(key),
+      ...this._state,
+    }
     const result = renderTemplate(
       this._ast?.template ?? null,
-      this._state,
+      stateWithMemory,
       this._ctx
     )
     // Flush turn-scoped data after each render cycle
