@@ -47,8 +47,13 @@ export interface BoardScriptAPI {
   /** Emit a named event (handled by external `board.on()` listeners). */
   emit(event: string, payload?: unknown): void
 
-  /** Inject a message into conversation history. */
-  inject(data: unknown, opts?: { role?: string; priority?: string }): void
+  /**
+   * Read a session-stored value by key.
+   * Equivalent to `session(key)` with no value argument.
+   *
+   * @param key - Session key to read
+   */
+  inject(key: string): unknown
 
   /** Append data to the current turn buffer (cleared each render). */
   turn(data: unknown): void
@@ -56,8 +61,15 @@ export interface BoardScriptAPI {
   /** Push an entry into history. */
   history(data: unknown, opts?: { role?: string; priority?: string }): void
 
-  /** Get or set a session-scoped key-value entry. */
+  /**
+   * Get or set a session-scoped key-value entry.
+   *
+   * - `session(key, value)` — set a single key
+   * - `session(key)` — read a single key (returns the stored value)
+   * - `session({ key: value, ... })` — bulk-set multiple keys at once
+   */
   session(key: string, value?: unknown): unknown
+  session(entries: Record<string, unknown>): void
 
   /** Drop / remove data from context. */
   drop(data: unknown): void

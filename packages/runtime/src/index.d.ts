@@ -65,10 +65,13 @@ export declare class ToolRegistry {
 // ─── ContextManager ───────────────────────────────────────────────────────────
 
 export declare class ContextManager {
-  inject(data: unknown, opts?: { role?: string; priority?: string }): void
+  /** Read a session-stored value by key (alias for getSession). */
+  inject(key: string): unknown
   turn(data: unknown): void
   history(data: unknown, opts?: { role?: string; priority?: string }): void
+  /** Set a single session key, or bulk-set via object. */
   session(key: string, value?: unknown): unknown
+  session(entries: Record<string, unknown>): void
   drop(data: unknown): void
 
   /** Set or delete a runtime memory entry (pass null/undefined to delete). */
