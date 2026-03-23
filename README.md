@@ -91,7 +91,30 @@ on('update', (input) => {
 
 <config>
 model: gpt-4o
+tools:
+  - name: search
+    description: Search the web
+    group: default
+  - name: code_exec
+    description: Execute code
+    group: [default, advanced]
 </config>
+```
+
+Declare tools in `<config>` and access them in scripts via `toolsByGroup()` / `toolsByName()` / `allTools()`. Internal fields (`group`, `handler`) are automatically stripped before the tools are returned, so the result is safe to pass directly to an LLM.
+
+```board
+<script>
+let activeTools = []
+
+on('update', (input) => {
+  // filter tools by the group the user requested
+  activeTools = toolsByGroup(input.toolGroup ?? 'default')
+
+  // persist something across turns
+  memory('lastToolGroup', input.toolGroup)
+})
+</script>
 ```
 
 The above produces:
@@ -265,6 +288,8 @@ Inside a `.board` `<script>`, these lifecycle hooks are available:
 
 ### Script context APIs
 
+**Context routing**
+
 | API | Description |
 |-----|-------------|
 | `turn(data, opts?)` | Route data to current turn only (auto-discarded after render) |
@@ -273,6 +298,21 @@ Inside a `.board` `<script>`, these lifecycle hooks are available:
 | `inject(key)` | Read a session-stored value |
 | `drop(data)` | Explicitly discard data (no-op, for clarity) |
 | `emit(event, payload)` | Fire a named event; listen with `on('emit:event', fn)` |
+
+**Tool registry** (requires `tools:` in `<config>`)
+
+| API | Description |
+|-----|-------------|
+| `allTools()` | Return all declared tools (internal fields like `group`/`handler` stripped) |
+| `toolsByGroup(...groups)` | Return tools belonging to any of the given groups |
+| `toolsByName(...names)` | Return tools with the given names |
+
+**Runtime memory** (persists across turns, manually managed)
+
+| API | Description |
+|-----|-------------|
+| `memory(key, value)` | Set a runtime memory entry; pass `null`/`undefined` to delete the key |
+| `getMemory(key?)` | Read a single entry by key, or get a shallow copy of all entries if key is omitted |
 
 ## Packages
 
