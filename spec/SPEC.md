@@ -231,7 +231,82 @@ on('update', (input) => {
 })
 ```
 
-### 4.4 完整 JS 生态
+### 4.4 Tool Registry（动态工具加载）
+
+在 `<config>` 中声明工具后，script 里可以使用工具查询 API：
+
+```yaml
+# <config>
+tools:
+  - name: search
+    description: Search the web
+    group: default
+  - name: code_exec
+    description: Execute code
+    group: [default, advanced]
+  - name: diagram
+    description: Generate diagrams
+    group: advanced
+```
+
+```js
+// Script 中可用的工具 API
+let activeTools = []
+
+on('update', (input) => {
+  // 按 group 过滤（多个 group 取并集）
+  activeTools = toolsByGroup('default')           // → [search, code_exec]
+  activeTools = toolsByGroup('default', 'advanced') // → [search, code_exec, diagram]
+
+  // 按名称查找
+  activeTools = toolsByName('search', 'diagram')  // → [search, diagram]
+
+  // 获取全部
+  activeTools = allTools()                         // → [search, code_exec, diagram]
+})
+```
+
+`group`、`handler` 等内部字段**自动从结果中剥离**，返回的 schema 可以直接传给 LLM。
+
+| API | 说明 |
+|-----|------|
+| `toolsByGroup(...groups)` | 返回属于任意指定 group 的工具（并集） |
+| `toolsByName(...names)` | 返回指定名称的工具 |
+| `allTools()` | 返回全部工具 |
+
+### 4.5 Runtime Memory（跨轮持久内存）
+
+与 `session()` 不同，runtime memory 完全由使用方手动管理，不会在轮次之间自动清除。
+
+```js
+on('update', (input) => {
+  // 存储
+  memory('lastInput', input.message)
+  memory('screenshot', input.imageKey)
+
+  // 读取
+  const prev = getMemory('lastInput')    // 读取单个 key
+  const all  = getMemory()               // 读取全部（浅拷贝）
+
+  // 删除
+  memory('screenshot', null)             // 传 null/undefined 删除
+})
+```
+
+`getMemory` 也可在 template 表达式中使用：
+
+```board
+<template>
+  <system>Last tool group: {{ getMemory('lastToolGroup') }}</system>
+</template>
+```
+
+| API | 说明 |
+|-----|------|
+| `memory(key, value)` | 存储（`null`/`undefined` 为删除） |
+| `getMemory(key?)` | 读取单个 key，或无参时返回全部的浅拷贝 |
+
+### 4.6 完整 JS 生态
 
 Script 块支持完整的 Node.js ESM，可以直接使用内置模块和 npm 包（项目需要自行安装依赖）。
 

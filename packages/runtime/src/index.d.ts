@@ -1,5 +1,5 @@
 /**
- * @promptu/runtime — TypeScript type definitions
+ * @board/runtime (internal) — TypeScript type definitions
  */
 
 // ─── ToolRegistry ─────────────────────────────────────────────────────────────
