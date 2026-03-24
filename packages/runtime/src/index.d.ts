@@ -69,8 +69,8 @@ export declare class ContextManager {
   inject(key: string): unknown
   turn(data: unknown): void
   history(data: unknown, opts?: { role?: string; priority?: string }): void
-  /** Set a single session key, or bulk-set via object. */
-  session(key: string, value?: unknown): unknown
+  /** Set a single session key, or bulk-set via object. To read back, use inject(key). */
+  session(key: string, value: unknown): void
   session(entries: Record<string, unknown>): void
   drop(data: unknown): void
 

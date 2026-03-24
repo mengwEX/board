@@ -49,7 +49,9 @@ export interface BoardScriptAPI {
 
   /**
    * Read a session-stored value by key.
-   * Equivalent to `session(key)` with no value argument.
+   *
+   * Use `inject(key)` to read a value that was previously written with
+   * `session(key, value)` or `session({ key: value })`.
    *
    * @param key - Session key to read
    */
@@ -62,13 +64,14 @@ export interface BoardScriptAPI {
   history(data: unknown, opts?: { role?: string; priority?: string }): void
 
   /**
-   * Get or set a session-scoped key-value entry.
+   * Write a session-scoped key-value entry (persists for the lifetime of the session).
    *
    * - `session(key, value)` — set a single key
-   * - `session(key)` — read a single key (returns the stored value)
    * - `session({ key: value, ... })` — bulk-set multiple keys at once
+   *
+   * To read a session value back, use `inject(key)`.
    */
-  session(key: string, value?: unknown): unknown
+  session(key: string, value: unknown): void
   session(entries: Record<string, unknown>): void
 
   /** Drop / remove data from context. */
