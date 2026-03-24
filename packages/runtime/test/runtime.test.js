@@ -1255,3 +1255,23 @@ on('update', (input) => {
   assert(out.result === 'v2', 'getMemory should be accessible in template expressions')
   await board.destroy()
 })
+
+test('session() bulk-write sets multiple keys at once', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ val1 }}-{{ val2 }}</result>
+</template>
+<script>
+let val1 = ''
+let val2 = ''
+on('update', () => {
+  session({ key1: 'alpha', key2: 'beta' })
+  val1 = inject('key1')
+  val2 = inject('key2')
+})
+</script>
+`)
+  const out = await board.update({})
+  assert(out.result === 'alpha-beta', 'bulk session write should set both keys')
+  await board.destroy()
+})

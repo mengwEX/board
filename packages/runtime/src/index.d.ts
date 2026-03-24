@@ -80,7 +80,8 @@ export declare class ContextManager {
   /** Read a runtime memory entry; omit key to get a full shallow copy. */
   getMemory(key?: string): unknown
 
-  flush(): void
+  /** Discard all current-turn data. Called automatically by Runtime after each render. */
+  flushTurn(): void
 }
 
 // ─── Renderer ─────────────────────────────────────────────────────────────────
