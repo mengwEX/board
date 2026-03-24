@@ -15,6 +15,25 @@
   "files": [
     "src/"
   ],
+  "keywords": [
+    "ai",
+    "agent",
+    "llm",
+    "context",
+    "prompt",
+    "template",
+    "reactive"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mengwEX/board.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/mengwEX/board#readme",
+  "bugs": {
+    "url": "https://github.com/mengwEX/board/issues"
+  },
+  "license": "MIT",
   "scripts": {
     "test": "node test/core.test.js"
   },
