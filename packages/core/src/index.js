@@ -47,6 +47,12 @@ export async function createBoard(boardPath, opts = {}) {
 export class Board {
   constructor(runtime) {
     this._runtime = runtime
+    this._destroyed = false
+  }
+
+  /** @throws {Error} if called after destroy() */
+  _assertAlive() {
+    if (this._destroyed) throw new Error('[Board] cannot call methods on a destroyed Board instance')
   }
 
   /**
@@ -62,6 +68,7 @@ export class Board {
    * @returns {Promise<any>}
    */
   async update(input) {
+    this._assertAlive()
     await this._runtime._triggerHook('update', input)
     return await this._runtime._render()
   }
@@ -71,17 +78,20 @@ export class Board {
    * @param {string} boardPath
    */
   async load(boardPath) {
+    this._assertAlive()
     await this._runtime._loadFile(boardPath)
     await this._runtime._triggerHook('mount')
   }
 
   /** 读取当前响应式状态（调试用）*/
   getState() {
+    this._assertAlive()
     return this._runtime.getState()
   }
 
   /** 读取当前 context（history / session / turn 数据，调试用）*/
   getContext() {
+    this._assertAlive()
     return this._runtime.getContext()
   }
 
@@ -92,6 +102,7 @@ export class Board {
    * @param {number} maxItems - 保留的最大历史条数
    */
   trimHistory(maxItems) {
+    this._assertAlive()
     this._runtime._ctx.trimHistory(maxItems)
   }
 
@@ -103,6 +114,7 @@ export class Board {
    * @param {any} [payload]
    */
   async emit(event, payload) {
+    this._assertAlive()
     await this._runtime._emit(event, payload)
   }
 
@@ -143,6 +155,8 @@ export class Board {
 
   /** 停止 Runtime，清理资源 */
   async destroy() {
+    if (this._destroyed) return
+    this._destroyed = true
     await this._runtime.stop()
   }
 }

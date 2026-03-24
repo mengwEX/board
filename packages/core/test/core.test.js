@@ -5,8 +5,10 @@
 
 import { createBoard, Board } from '../src/index.js'
 import { writeFile, mkdir } from 'fs/promises'
+import { writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { tmpdir } from 'os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const tmpDir = join(__dirname, 'tmp')
@@ -302,6 +304,38 @@ await test('board.load() updates entryPath so hot-reload tracks new file', async
   assert(board._runtime._entryPath === pathB, 'entryPath should be updated to pathB')
 
   await board.destroy()
+})
+
+// ─── Test: use after destroy throws ──────────────────────────────────────
+
+await test('board.update() throws after destroy()', async () => {
+  const boardPath = join(tmpdir(), `board-destroyed-${Date.now()}.board`)
+  writeFileSync(boardPath, `
+<template><result>ok</result></template>
+<script>
+on('update', () => {})
+</script>
+`)
+  const board = await createBoard(boardPath, { watch: false })
+  await board.destroy()
+
+  let threw = false
+  try {
+    await board.update({})
+  } catch (e) {
+    threw = e.message.includes('destroyed')
+  }
+  assert(threw, 'update() should throw after destroy()')
+})
+
+await test('board.destroy() is idempotent', async () => {
+  const boardPath = join(tmpdir(), `board-idempotent-${Date.now()}.board`)
+  writeFileSync(boardPath, `<template><r>ok</r></template><script>on('update', () => {})</script>`)
+  const board = await createBoard(boardPath, { watch: false })
+  await board.destroy()
+  // second destroy should not throw
+  await board.destroy()
+  assert(true, 'double destroy() should not throw')
 })
 
 // ─── Results ─────────────────────────────────────────────────────────────
