@@ -2,6 +2,10 @@
 
 > Reactive context engine for AI agents
 
+[![CI](https://github.com/mengwEX/board/actions/workflows/ci.yml/badge.svg)](https://github.com/mengwEX/board/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@board/core)](https://www.npmjs.com/package/@board/core)
+[![Node.js](https://img.shields.io/node/v/@board/core)](https://nodejs.org)
+
 Board sits between an LLM response and the next LLM request. It runs your `.board` file — a reactive component where you define how inputs are processed and what the output looks like.
 
 **Board does not decide input/output format. You do.**
