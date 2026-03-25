@@ -61,7 +61,7 @@ export interface BoardScriptAPI {
   turn(data: unknown): void
 
   /** Push an entry into history. */
-  history(data: unknown, opts?: { role?: string; priority?: string }): void
+  history(data: unknown, opts?: { role?: string; priority?: 'high' | 'normal' | 'low' }): void
 
   /**
    * Write a session-scoped key-value entry (persists for the lifetime of the session).

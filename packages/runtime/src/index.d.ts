@@ -65,23 +65,56 @@ export declare class ToolRegistry {
 // ─── ContextManager ───────────────────────────────────────────────────────────
 
 export declare class ContextManager {
-  /** Read a session-stored value by key (alias for getSession). */
-  inject(key: string): unknown
-  turn(data: unknown): void
-  history(data: unknown, opts?: { role?: string; priority?: string }): void
-  /** Set a single session key, or bulk-set via object. To read back, use inject(key). */
+  /** Route data to the current turn only (auto-discarded after render). */
+  turn(data: unknown, opts?: { label?: string }): void
+
+  /**
+   * Append an entry to the conversation history.
+   * `opts.priority` controls eviction order for `trimHistory()`:
+   * `'low'` items are removed first.
+   */
+  history(data: unknown, opts?: { role?: string; priority?: 'high' | 'normal' | 'low' }): void
+
+  /**
+   * Store a value for the session lifetime.
+   * Accepts either a key/value pair or a bulk-write object.
+   * Read back with `getSession(key)`.
+   */
   session(key: string, value: unknown): void
   session(entries: Record<string, unknown>): void
+
+  /** Explicitly discard data (no-op — documents intent). */
   drop(data: unknown): void
 
-  /** Set or delete a runtime memory entry (pass null/undefined to delete). */
+  /** Read a session-stored value by key; omit key to get a full shallow copy. */
+  getSession(key?: string): unknown
+
+  /** Return a snapshot of the current-turn data array. */
+  getTurnData(): unknown[]
+
+  /**
+   * Return the conversation history, optionally limited to the most recent `limit` entries.
+   */
+  getHistory(limit?: number): Array<{ role: string; content: string; priority: string; timestamp: number }>
+
+  /** Set or delete a runtime memory entry (pass null/undefined to delete the key). */
   memory(key: string, value: unknown): void
 
-  /** Read a runtime memory entry; omit key to get a full shallow copy. */
+  /** Read a runtime memory entry; omit key to get a full shallow copy of all entries. */
   getMemory(key?: string): unknown
 
-  /** Discard all current-turn data. Called automatically by Runtime after each render. */
+  /**
+   * Discard all current-turn data.
+   * Called automatically by the Runtime after each render cycle.
+   */
   flushTurn(): void
+
+  /**
+   * Trim the history to the most recent `maxItems` entries.
+   * `'low'` priority items are evicted first; within the same priority,
+   * older entries (lower `timestamp`) are removed first.
+   */
+  trimHistory(maxItems: number): void
 }
 
 // ─── Renderer ─────────────────────────────────────────────────────────────────
