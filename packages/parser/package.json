@@ -4,8 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "main": "./src/index.js",
+  "types": "./src/index.d.ts",
   "exports": {
-    ".": "./src/index.js"
+    ".": {
+      "import": "./src/index.js",
+      "types": "./src/index.d.ts"
+    }
   },
   "scripts": {
     "test": "node test/parser.test.js"
