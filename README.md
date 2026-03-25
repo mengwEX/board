@@ -35,8 +35,12 @@ npm install @board/core
 
 ```js
 import { createBoard } from '@board/core'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-const board = await createBoard('./main.board')
+// ESM: resolve path relative to the current file, not cwd
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const board = await createBoard(resolve(__dirname, './main.board'))
 
 // pass anything in, get your template output back
 const output = await board.update(input)
@@ -45,6 +49,8 @@ const output = await board.update(input)
 `input` — any structure. Your `.board` script handles it via `on('update', input => { ... })`.
 
 `output` — whatever your `.board` `<template>` renders.
+
+> **Note:** Board uses Node.js ESM. Paths passed to `createBoard()` are resolved relative to `process.cwd()`, not the caller's file. Use `resolve(dirname(fileURLToPath(import.meta.url)), './your.board')` to ensure the path is always correct regardless of where you run the script.
 
 ## .board file
 

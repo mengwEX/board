@@ -6,8 +6,11 @@
  */
 
 import { createBoard } from '@board/core'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-const board = await createBoard('./assistant.board')
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const board = await createBoard(resolve(__dirname, './assistant.board'))
 
 // 传入任意结构的输入
 // .board 里的 on('update') 钩子负责处理
