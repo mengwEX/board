@@ -285,6 +285,20 @@ board.off('emit:name')
 await board.destroy()
 ```
 
+### Board instance API
+
+| Method | Description |
+|--------|-------------|
+| `board.update(input)` | Core method. Pass any input → triggers `on('update')` → renders template → returns output. |
+| `board.load(path)` | Swap the running `.board` file at runtime. Triggers `on('mount')` after load. |
+| `board.emit(event, payload?)` | Fire a named event from outside (script handles it via `on('emit:<event>', fn)`). |
+| `board.on(event, fn)` | Listen to runtime or `emit:` events from outside the `.board` script. |
+| `board.off(event, fn?)` | Remove a specific listener, or all listeners for an event if `fn` is omitted. |
+| `board.trimHistory(n)` | Keep only the most recent `n` history entries. Low-priority entries are evicted first. |
+| `board.getState()` | Return current reactive state (debug). |
+| `board.getContext()` | Return `{ history, session, turn }` snapshot (debug). |
+| `board.destroy()` | Stop the runtime, clean up resources. Idempotent. |
+
 ### Script hooks
 
 Inside a `.board` `<script>`, these lifecycle hooks are available:
