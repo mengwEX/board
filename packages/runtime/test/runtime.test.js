@@ -1275,3 +1275,50 @@ on('update', () => {
   assert(out.result === 'alpha-beta', 'bulk session write should set both keys')
   await board.destroy()
 })
+
+// ─── Test: conditional include (:if) ────────────────────────────────────
+
+await test('<include :if="cond"> skips load when condition is false', async () => {
+  // Write an include file to the tmp dir
+  const includeFile = join(tmpDir, 'cond-include.txt')
+  await writeFile(includeFile, 'INCLUDED CONTENT')
+
+  const board = await createInlineBoard(`
+<template>
+  <system><include :if="showExtra" src="./cond-include.txt" /></system>
+</template>
+<script>
+let showExtra = false
+on('update', (input) => {
+  showExtra = input.show ?? false
+})
+</script>
+`)
+  // Condition false → include should be skipped
+  const out1 = await board.update({ show: false })
+  assert(!out1.system.includes('INCLUDED CONTENT'), ':if=false should skip include')
+  assert(out1.system.trim() === '', ':if=false should produce empty output')
+
+  // Condition true → include should be loaded
+  const out2 = await board.update({ show: true })
+  assert(out2.system.includes('INCLUDED CONTENT'), ':if=true should load include')
+
+  await board.destroy()
+})
+
+await test('<include :if="cond"> with static if="true" always includes', async () => {
+  const includeFile2 = join(tmpDir, 'always-include.txt')
+  await writeFile(includeFile2, 'ALWAYS HERE')
+
+  const board = await createInlineBoard(`
+<template>
+  <system><include if="true" src="./always-include.txt" /></system>
+</template>
+<script>
+on('update', () => {})
+</script>
+`)
+  const out = await board.update({})
+  assert(out.system.includes('ALWAYS HERE'), 'static if="true" should always include')
+  await board.destroy()
+})

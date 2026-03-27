@@ -316,6 +316,26 @@ export class PromptuRuntime {
     if (!nodes) return
     for (const node of nodes) {
       if (node.type === 'include') {
+        // T15: Conditional include — evaluate :if="expr" before loading
+        const ifAttr = node.if
+        if (ifAttr) {
+          let condValue
+          try {
+            const stateKeys = Object.keys(state)
+            const fn = new Function(...stateKeys, `return !!(${ifAttr.type === 'dynamic' ? ifAttr.expr : JSON.stringify(ifAttr.value)})`)
+            condValue = fn(...Object.values(state))
+          } catch (e) {
+            if (process.env.BOARD_DEBUG) {
+              console.warn(`[Board] <include :if="..."> eval error: ${e.message}`)
+            }
+            condValue = false
+          }
+          if (!condValue) {
+            node._rendered = ''
+            continue
+          }
+        }
+
         const src = node.src
         let srcAttr
         if (src?.type === 'static') {
