@@ -215,7 +215,8 @@ const MAX_CACHE_SIZE = 512
 function evalExpr(expr, state) {
   try {
     const stateKeys = Object.keys(state)
-    const cacheKey = stateKeys.join(',') + '|' + expr
+    // Use JSON.stringify to avoid cache key collisions when key names contain ',' or '|'
+    const cacheKey = JSON.stringify(stateKeys) + '|' + expr
     let fn = _exprCache.get(cacheKey)
     if (!fn) {
       fn = new Function(...stateKeys, `return (${expr})`)

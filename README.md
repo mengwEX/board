@@ -364,6 +364,35 @@ BOARD_DEBUG=1 node your-script.js
 
 When enabled, template interpolation errors (e.g. undefined variables in `{{ expr }}`) are printed to stderr instead of silently returning `''`.
 
+## Concurrency
+
+Board is **not designed for concurrent `update()` calls** on the same instance.
+`board.update(input)` is a async method that mutates shared reactive state —
+calling it simultaneously from multiple async contexts can produce race conditions
+where turn data or state updates interleave unpredictably.
+
+**For parallel workloads**, create a separate `Board` instance per concurrent
+request (each instance has its own isolated state and context):
+
+```js
+// ✅ safe — one instance per request
+async function handleRequest(input) {
+  const board = await createBoard('./agent.board', { watch: false })
+  const output = await board.update(input)
+  await board.destroy()
+  return output
+}
+
+// or reuse instances sequentially — queue updates yourself
+async function processQueue(board, items) {
+  const results = []
+  for (const item of items) {
+    results.push(await board.update(item))
+  }
+  return results
+}
+```
+
 ## Status
 
 🚧 Early development.
