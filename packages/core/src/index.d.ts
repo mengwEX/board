@@ -151,6 +151,8 @@ export interface BoardContext {
   session: Record<string, unknown>
   /** Current turn data (discarded after each render) */
   turn: unknown[]
+  /** Runtime memory entries (manually managed, never auto-cleared) */
+  memory: Record<string, unknown>
 }
 
 // ─── Board ────────────────────────────────────────────────────────────────────

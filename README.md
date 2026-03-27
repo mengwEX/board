@@ -263,7 +263,7 @@ await board.load('./other.board')
 // inspect state (debug)
 board.getState()
 
-// inspect context: { history, session, turn }
+// inspect context: { history, session, turn, memory }
 board.getContext()
 
 // trim history to the most recent N entries (low-priority items removed first)
@@ -296,7 +296,7 @@ await board.destroy()
 | `board.off(event, fn?)` | Remove a specific listener, or all listeners for an event if `fn` is omitted. |
 | `board.trimHistory(n)` | Keep only the most recent `n` history entries. Low-priority entries are evicted first. |
 | `board.getState()` | Return current reactive state (debug). |
-| `board.getContext()` | Return `{ history, session, turn }` snapshot (debug). |
+| `board.getContext()` | Return `{ history, session, turn, memory }` snapshot (debug). |
 | `board.destroy()` | Stop the runtime, clean up resources. Idempotent. |
 
 ### Script hooks

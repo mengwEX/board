@@ -338,6 +338,41 @@ await test('board.destroy() is idempotent', async () => {
   assert(true, 'double destroy() should not throw')
 })
 
+// ─── Test: getContext() includes memory field ────────────────────────────
+
+await test('getContext() includes memory field reflecting runtimeMemory state', async () => {
+  const boardPath = await writeTmp('ctx-memory.board', `
+<template>
+  <out>ok</out>
+</template>
+<script>
+let x = 0
+on('update', (input) => {
+  x = input.v ?? 0
+  memory('key', input.val ?? null)
+})
+</script>
+`)
+  const board = await createBoard(boardPath, { watch: false })
+
+  // Before any update — memory should be empty
+  const ctx0 = board.getContext()
+  assert(typeof ctx0.memory === 'object' && ctx0.memory !== null, 'memory should be an object')
+  assert(Object.keys(ctx0.memory).length === 0, 'memory should be empty initially')
+
+  // After setting a memory value
+  await board.update({ v: 1, val: 'hello' })
+  const ctx1 = board.getContext()
+  assert(ctx1.memory.key === 'hello', 'memory.key should be "hello" after update')
+
+  // After clearing memory (passing null)
+  await board.update({ v: 2, val: null })
+  const ctx2 = board.getContext()
+  assert(ctx2.memory.key === undefined, 'memory.key should be removed after null update')
+
+  await board.destroy()
+})
+
 // ─── Results ─────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(50)}`)

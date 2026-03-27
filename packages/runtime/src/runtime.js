@@ -34,6 +34,7 @@ export class PromptuRuntime {
     this._handlers = {}
 
     this._ctx = new ContextManager()
+    this._toolRegistry = new ToolRegistry(null)
     this._watchAbortController = null
   }
 
@@ -378,6 +379,7 @@ export class PromptuRuntime {
       history: this._ctx.getHistory(),
       session: this._ctx.getSession(),
       turn: this._ctx.getTurnData(),
+      memory: this._ctx.getMemory(),
     }
   }
 }
