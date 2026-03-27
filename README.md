@@ -239,6 +239,27 @@ on('update', (input) => { lang = input.lang ?? 'en' })
 </script>
 ```
 
+Use `:if="expr"` for conditional includes — the file is only loaded when the condition is truthy:
+
+```board
+<template>
+  <system>
+    <include src="./prompts/base.txt" />
+    <include :if="advancedMode" src="./prompts/advanced.txt" />
+  </system>
+</template>
+<script>
+let advancedMode = false
+on('update', (input) => { advancedMode = input.mode === 'advanced' })
+</script>
+```
+
+You can combine `:if` and `:src` on the same node:
+
+```board
+<include :if="lang !== 'en'" :src="`./prompts/${lang}-instructions.txt`" />
+```
+
 When used inside a `<messages>` section, the included content is treated as a message. The default role is `user`; use the `role` attribute to override:
 
 ```board
