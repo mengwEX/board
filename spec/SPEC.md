@@ -348,13 +348,23 @@ await board.load('./other.board')
 // 读取当前响应式状态（调试用）
 board.getState()
 
-// 读取 context（{ history, session, turn }，调试用）
+// 读取 context（{ history, session, turn, memory }，调试用）
 board.getContext()
 
 // 裁剪历史，保留最近 N 条（低优先级先移除）
 board.trimHistory(20)
 
-// 停止，清理资源
+// 从外部触发命名事件（script 通过 on('emit:name', fn) 监听）
+await board.emit('name', payload)
+
+// 从外部监听运行时事件或 emit 事件
+board.on('emit:name', (payload) => { /* ... */ })
+
+// 移除具体监听器；不传 fn 时移除该事件的所有监听器
+board.off('emit:name', handler)
+board.off('emit:name')
+
+// 停止，清理资源（幂等）
 await board.destroy()
 ```
 
