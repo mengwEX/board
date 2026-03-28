@@ -1,5 +1,5 @@
 /**
- * @board/runtime (internal) — TypeScript type definitions
+ * @promptu/runtime — TypeScript type definitions
  */
 
 // ─── ToolRegistry ─────────────────────────────────────────────────────────────
@@ -124,3 +124,69 @@ export declare function renderTemplate(
   state: Record<string, unknown>,
   ctx: ContextManager,
 ): unknown
+
+// ─── PromptuRuntime ───────────────────────────────────────────────────────────
+
+export interface PromptuRuntimeOptions {
+  /**
+   * Watch the `.board` file (and included files) for changes and hot-reload.
+   * @default true
+   */
+  watch?: boolean
+}
+
+export interface RuntimeContext {
+  /** Conversation history entries */
+  history: Array<{ role: string; content: string; priority: string; timestamp: number }>
+  /** Session-scoped key-value store (full shallow copy) */
+  session: Record<string, unknown>
+  /** Current turn data snapshot (discarded after each render) */
+  turn: unknown[]
+  /** Runtime memory entries */
+  memory: Record<string, unknown>
+}
+
+/**
+ * Low-level reactive template engine for `.board` files.
+ *
+ * Prefer the higher-level `@board/core` `createBoard()` / `Board` API unless
+ * you need direct access to the runtime internals.
+ *
+ * Lifecycle:
+ * ```
+ * const rt = new PromptuRuntime('./main.board')
+ * await rt.start()          // load file, exec <script>, fire 'mount'
+ * // ... use rt._triggerHook / rt._render for each turn ...
+ * await rt.stop()           // fire 'destroy', stop file watcher
+ * ```
+ */
+export declare class PromptuRuntime {
+  /**
+   * @param entryPath - Path to the `.board` entry file
+   * @param opts      - Optional configuration
+   */
+  constructor(entryPath: string, opts?: PromptuRuntimeOptions)
+
+  /**
+   * Load the `.board` file, execute its `<script>`, optionally start the file
+   * watcher, and fire the `on('mount')` hook.
+   *
+   * Must be called before any other method.
+   */
+  start(): Promise<void>
+
+  /**
+   * Stop the file watcher and fire the `on('destroy')` hook.
+   */
+  stop(): Promise<void>
+
+  /**
+   * Return a shallow copy of the current reactive state (debug).
+   */
+  getState(): Record<string, unknown>
+
+  /**
+   * Return a snapshot of history, session, turn data, and memory (debug).
+   */
+  getContext(): RuntimeContext
+}
