@@ -134,6 +134,15 @@ function renderNode(node, state, ctx) {
       const items = node.items ? evalAttr(node.items, state) : []
       const asName = node.as?.value ?? 'item'
       if (!Array.isArray(items)) return ''
+      // If _resolveIncludes pre-pass stored per-item resolved children, use them
+      // so that dynamic :src / :if inside <each> get the correct loop-scoped content.
+      if (node._eachResolvedChildren) {
+        return items.map((item, i) => {
+          const loopState = { ...state, [asName]: item }
+          const children = node._eachResolvedChildren[i] ?? node.children
+          return renderNodes(children, loopState, ctx)
+        }).join('')
+      }
       return items.map(item => {
         const loopState = { ...state, [asName]: item }
         return renderNodes(node.children, loopState, ctx)

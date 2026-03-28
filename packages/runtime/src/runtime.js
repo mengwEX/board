@@ -365,8 +365,54 @@ export class PromptuRuntime {
           }
         }
       }
-      // Recurse into children
-      if (node.children) await this._resolveIncludesInNodes(node.children, baseDir, state)
+      // Recurse into children — for <each>, inject loop variable into state
+      if (node.children) {
+        if (node.type === 'each') {
+          // Evaluate the items expression and recurse once per item so that
+          // <include :src="item.file"> / <include :if="item.visible"> inside
+          // <each> can access the loop variable (same logic as renderer.js).
+          //
+          // items attr: only dynamic (:items="expr") is supported for array binding.
+          // as    attr: static → literal alias name; dynamic → eval expr for alias name
+          let items = []
+          try {
+            const stateKeys = Object.keys(state)
+            if (node.items?.type === 'dynamic') {
+              const fn = new Function(...stateKeys, `return (${node.items.expr})`)
+              const val = fn(...Object.values(state))
+              if (Array.isArray(val)) items = val
+            }
+          } catch (_) { /* ignore eval errors during pre-pass */ }
+
+          // Resolve the loop alias name
+          let asName = 'item'
+          try {
+            if (node.as) {
+              if (node.as.type === 'static') {
+                asName = node.as.value
+              } else if (node.as.type === 'dynamic') {
+                // :as="f" — the expr evaluates to the identifier string itself
+                asName = node.as.expr.trim()
+              }
+            }
+          } catch (_) { /* fallback to 'item' */ }
+
+          // Each item needs its own cloned children so that include nodes
+          // get per-item _rendered values instead of sharing a single node.
+          const resolvedChildrenPerItem = []
+          for (const item of items) {
+            const loopState = { ...state, [asName]: item }
+            // Deep-clone children so each iteration has independent nodes
+            const clonedChildren = JSON.parse(JSON.stringify(node.children))
+            await this._resolveIncludesInNodes(clonedChildren, baseDir, loopState)
+            resolvedChildrenPerItem.push(clonedChildren)
+          }
+          // Store per-item resolved children on the node for the renderer to consume
+          node._eachResolvedChildren = resolvedChildrenPerItem
+        } else {
+          await this._resolveIncludesInNodes(node.children, baseDir, state)
+        }
+      }
     }
   }
 

@@ -1385,3 +1385,56 @@ on('update', () => {})
 
   await board.destroy()
 })
+
+await test('<include :src="expr"> inside <each> resolves with loop variable', async () => {
+  // Create two include files
+  const fileA = join(tmpDir, 'loop-a.txt')
+  const fileB = join(tmpDir, 'loop-b.txt')
+  const { writeFile: wf } = await import('fs/promises')
+  await wf(fileA, 'content-A')
+  await wf(fileB, 'content-B')
+
+  const board = await createInlineBoard(`
+<template>
+  <result>
+    <each :items="files" as="f">
+      <include :src="f" />
+    </each>
+  </result>
+</template>
+<script>
+let files = []
+on('update', (input) => { files = input.files })
+</script>
+`)
+
+  const out = await board.update({ files: ['loop-a.txt', 'loop-b.txt'] })
+  assert(out.result.includes('content-A'), '<each> include should render content-A')
+  assert(out.result.includes('content-B'), '<each> include should render content-B')
+  await board.destroy()
+})
+
+await test('<include :if="expr"> inside <each> respects loop variable condition', async () => {
+  const fileYes = join(tmpDir, 'cond-yes.txt')
+  const { writeFile: wf } = await import('fs/promises')
+  await wf(fileYes, 'visible')
+
+  const board = await createInlineBoard(`
+<template>
+  <result>
+    <each :items="items" as="it">
+      <include :if="it.show" src="cond-yes.txt" />
+    </each>
+  </result>
+</template>
+<script>
+let items = []
+on('update', (input) => { items = input.items })
+</script>
+`)
+
+  const out = await board.update({ items: [{ show: true }, { show: false }, { show: true }] })
+  const matches = (out.result.match(/visible/g) || []).length
+  assert(matches === 2, `Expected 2 occurrences of "visible", got ${matches}`)
+  await board.destroy()
+})
