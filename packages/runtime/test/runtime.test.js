@@ -56,6 +56,18 @@ async function createTestBoard(filename, source) {
     getState() { return runtime.getState() },
     getContext() { return runtime.getContext() },
     trimHistory(max) { runtime._ctx.trimHistory(max) },
+    on(event, fn) {
+      if (!runtime._handlers[event]) runtime._handlers[event] = []
+      runtime._handlers[event].push(fn)
+    },
+    off(event, fn) {
+      if (!runtime._handlers[event]) return
+      if (fn) {
+        runtime._handlers[event] = runtime._handlers[event].filter(h => h !== fn)
+      } else {
+        delete runtime._handlers[event]
+      }
+    },
     async destroy() { await runtime.stop() },
   }
 }
@@ -1320,5 +1332,56 @@ on('update', () => {})
 `)
   const out = await board.update({})
   assert(out.system.includes('ALWAYS HERE'), 'static if="true" should always include')
+  await board.destroy()
+})
+
+// ─── Test: board.off() external listener removal ─────────────────────────────
+
+await test('board.off(event, fn) removes a specific listener', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>{{ count }}</result>
+</template>
+<script>
+let count = 0
+on('update', () => { count++ })
+</script>
+`)
+
+  const calls = []
+  const handler = (payload) => calls.push(payload)
+  board.on('update', handler)
+
+  await board.update({ x: 1 })
+  assert(calls.length === 1, 'handler should be called once before off()')
+
+  board.off('update', handler)
+  await board.update({ x: 2 })
+  assert(calls.length === 1, 'handler should not be called after off(fn)')
+
+  await board.destroy()
+})
+
+await test('board.off(event) removes all listeners for an event', async () => {
+  const board = await createInlineBoard(`
+<template>
+  <result>ok</result>
+</template>
+<script>
+on('update', () => {})
+</script>
+`)
+
+  let calls = 0
+  board.on('update', () => calls++)
+  board.on('update', () => calls++)
+
+  await board.update({})
+  assert(calls === 2, 'both handlers should fire before off()')
+
+  board.off('update')
+  await board.update({})
+  assert(calls === 2, 'no handlers should fire after off(event)')
+
   await board.destroy()
 })
