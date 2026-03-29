@@ -2,6 +2,18 @@
  * @promptu/runtime — TypeScript type definitions
  */
 
+// ─── HistoryEntry ─────────────────────────────────────────────────────────────
+
+/**
+ * A single conversation history entry.
+ */
+export interface HistoryEntry {
+  role: string
+  content: string
+  priority: 'high' | 'normal' | 'low'
+  timestamp: number
+}
+
 // ─── ToolRegistry ─────────────────────────────────────────────────────────────
 
 /**
@@ -95,7 +107,7 @@ export declare class ContextManager {
   /**
    * Return the conversation history, optionally limited to the most recent `limit` entries.
    */
-  getHistory(limit?: number): Array<{ role: string; content: string; priority: string; timestamp: number }>
+  getHistory(limit?: number): HistoryEntry[]
 
   /** Set or delete a runtime memory entry (pass null/undefined to delete the key). */
   memory(key: string, value: unknown): void
@@ -137,7 +149,7 @@ export interface PromptuRuntimeOptions {
 
 export interface RuntimeContext {
   /** Conversation history entries */
-  history: Array<{ role: string; content: string; priority: string; timestamp: number }>
+  history: HistoryEntry[]
   /** Session-scoped key-value store (full shallow copy) */
   session: Record<string, unknown>
   /** Current turn data snapshot (discarded after each render) */

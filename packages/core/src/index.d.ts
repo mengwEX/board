@@ -144,9 +144,19 @@ export interface CreateBoardOptions {
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
+/**
+ * A single conversation history entry, as returned by `board.getContext().history`.
+ */
+export interface HistoryEntry {
+  role: string
+  content: string
+  priority: 'high' | 'normal' | 'low'
+  timestamp: number
+}
+
 export interface BoardContext {
   /** Conversation history entries */
-  history: unknown[]
+  history: HistoryEntry[]
   /** Session-scoped key-value store */
   session: Record<string, unknown>
   /** Current turn data (discarded after each render) */
