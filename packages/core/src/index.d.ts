@@ -45,7 +45,7 @@ export interface BoardScriptAPI {
   on(event: 'mount' | 'update' | 'destroy' | `emit:${string}`, fn: (payload?: unknown) => void): void
 
   /** Emit a named event (handled by external `board.on()` listeners). */
-  emit(event: string, payload?: unknown): void
+  emit(event: string, payload?: unknown): Promise<void>
 
   /**
    * Read a session-stored value by key.
