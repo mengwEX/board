@@ -373,6 +373,47 @@ on('update', (input) => {
   await board.destroy()
 })
 
+// ─── Test: trimHistory() evicts entries correctly ────────────────────────
+
+await test('trimHistory() keeps only the most recent N entries', async () => {
+  const boardPath = await writeTmp('trim-history.board', `
+<template>
+  <out>{{ histLen }}</out>
+</template>
+<script>
+let histLen = 0
+on('update', (input) => {
+  history(input, { role: 'user' })
+  histLen = 0 // will reflect in getContext
+})
+</script>
+`)
+  const board = await createBoard(boardPath, { watch: false })
+
+  await board.update({ msg: 'a' })
+  await board.update({ msg: 'b' })
+  await board.update({ msg: 'c' })
+  await board.update({ msg: 'd' })
+
+  const before = board.getContext().history
+  assert(before.length === 4, `expected 4 history entries before trim, got ${before.length}`)
+
+  board.trimHistory(2)
+
+  const after = board.getContext().history
+  assert(after.length === 2, `expected 2 history entries after trimHistory(2), got ${after.length}`)
+
+  // The remaining entries should be the most recent two
+  const contents = after.map(e => (typeof e.content === 'string' ? JSON.parse(e.content) : e.content))
+  assert(
+    JSON.stringify(contents[0]) === JSON.stringify({ msg: 'c' }) ||
+    JSON.stringify(contents[1]) === JSON.stringify({ msg: 'd' }),
+    'most recent entries should be retained after trim',
+  )
+
+  await board.destroy()
+})
+
 // ─── Results ─────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(50)}`)
