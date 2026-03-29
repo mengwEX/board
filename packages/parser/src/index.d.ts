@@ -37,19 +37,33 @@ export interface IfNode {
   children: Node[]
 }
 
-/** An `<each item="..." in="...">` iteration node. */
+/**
+ * An `<each :items="expr" as="alias">` iteration node.
+ *
+ * - `items` — expression that evaluates to an array (use `:items="expr"` for dynamic)
+ * - `as`    — loop variable alias (default: `"item"`)
+ */
 export interface EachNode {
   type: 'each'
-  item: AttrValue
-  in: AttrValue
+  /** Array source expression. */
+  items: AttrValue
+  /** Loop variable alias. */
+  as?: AttrValue
   children: Node[]
 }
 
 /** A `<include src="..." />` include node. */
 export interface IncludeNode {
   type: 'include'
+  /** Static or dynamic source path (`src="..."` or `:src="expr"`). */
   src: AttrValue
-  [key: string]: AttrValue | undefined
+  /**
+   * Optional conditional attribute (`:if="expr"`).
+   * When present and the expression evaluates to falsy, the include is skipped.
+   */
+  if?: AttrValue
+  /** Any additional attributes parsed from the tag. */
+  [key: string]: string | AttrValue | undefined
 }
 
 /** A `<message>`, `<user>`, or `<assistant>` message node. */
@@ -57,7 +71,8 @@ export interface MessageNode {
   type: 'message'
   role: AttrValue
   children: Node[]
-  [key: string]: AttrValue | Node[] | undefined
+  /** Any additional attributes parsed from the tag. */
+  [key: string]: string | AttrValue | Node[] | undefined
 }
 
 /** Any template AST node. */
