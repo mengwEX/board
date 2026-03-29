@@ -1438,3 +1438,41 @@ on('update', (input) => { items = input.items })
   assert(matches === 2, `Expected 2 occurrences of "visible", got ${matches}`)
   await board.destroy()
 })
+
+await test('<include :src="expr"> inside <each> in messages section resolves with loop variable', async () => {
+  // Regression: renderMessagesNodes was not using _eachResolvedChildren,
+  // so dynamic :src inside <each> in a <messages> section would fail.
+  const { writeFile: wf } = await import('fs/promises')
+  await wf(join(tmpDir, 'msg-a.txt'), 'context-A')
+  await wf(join(tmpDir, 'msg-b.txt'), 'context-B')
+
+  const board = await createInlineBoard(`
+<template>
+  <messages>
+    <each :items="docs" as="d">
+      <include :src="d.file" :role="d.role" />
+    </each>
+    <message role="user">query</message>
+  </messages>
+</template>
+<script>
+let docs = []
+on('update', (input) => { docs = input.docs })
+</script>
+`)
+
+  const out = await board.update({
+    docs: [
+      { file: 'msg-a.txt', role: 'system' },
+      { file: 'msg-b.txt', role: 'assistant' },
+    ],
+  })
+  assert(Array.isArray(out.messages), 'messages section should return array')
+  assert(out.messages.length === 3, `Expected 3 messages, got ${out.messages.length}`)
+  assert(out.messages[0].content === 'context-A', `First include should have content-A, got: ${out.messages[0].content}`)
+  assert(out.messages[0].role === 'system', `First include should have role=system, got: ${out.messages[0].role}`)
+  assert(out.messages[1].content === 'context-B', `Second include should have content-B, got: ${out.messages[1].content}`)
+  assert(out.messages[1].role === 'assistant', `Second include should have role=assistant, got: ${out.messages[1].role}`)
+  assert(out.messages[2].role === 'user', 'Last message should be role=user')
+  await board.destroy()
+})

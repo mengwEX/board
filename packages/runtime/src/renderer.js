@@ -193,10 +193,22 @@ function renderMessagesNodes(nodes, state, ctx) {
       const items = node.items ? evalAttr(node.items, state) : []
       const asName = node.as?.value ?? 'item'
       if (Array.isArray(items)) {
-        for (const item of items) {
-          const loopState = { ...state, [asName]: item }
-          const sub = renderMessagesNodes(node.children, loopState, ctx)
-          messages.push(...sub)
+        // Use per-item resolved children from the pre-pass when available,
+        // so that dynamic :src/:if includes inside <each> in a messages section
+        // get the correct loop-scoped content (mirrors renderNode's <each> branch).
+        if (node._eachResolvedChildren) {
+          items.forEach((item, i) => {
+            const loopState = { ...state, [asName]: item }
+            const children = node._eachResolvedChildren[i] ?? node.children
+            const sub = renderMessagesNodes(children, loopState, ctx)
+            messages.push(...sub)
+          })
+        } else {
+          for (const item of items) {
+            const loopState = { ...state, [asName]: item }
+            const sub = renderMessagesNodes(node.children, loopState, ctx)
+            messages.push(...sub)
+          }
         }
       }
     } else if (node.type === 'include') {
