@@ -367,6 +367,22 @@ Inside a `.board` `<script>`, these lifecycle hooks are available:
 </template>
 ```
 
+**History management** (accessible from script)
+
+| API | Description |
+|-----|-------------|
+| `getHistory(limit?)` | Return the conversation history, optionally limited to the most recent `limit` entries |
+| `trimHistory(n)` | Keep only the most recent `n` history entries. Low-priority entries are evicted first. Also available on the `Board` instance as `board.trimHistory(n)` |
+
+```board
+<script>
+on('update', (input) => {
+  history(input.reply, { role: 'assistant' })
+  trimHistory(20)  // keep only the 20 most recent turns
+})
+</script>
+```
+
 ## Packages
 
 | Package | Description |

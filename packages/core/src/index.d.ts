@@ -130,6 +130,36 @@ export interface BoardScriptAPI {
    * @param key - Optional memory key
    */
   getMemory(key?: string): unknown
+
+  // ── History management APIs ────────────────────────────────────────────────
+
+  /**
+   * Return the conversation history, optionally limited to the most recent `limit` entries.
+   *
+   * @param limit - Optional maximum number of entries to return
+   */
+  getHistory(limit?: number): HistoryEntry[]
+
+  /**
+   * Trim the history to at most `maxItems` entries.
+   * Low-priority items (`priority: 'low'`) are evicted first;
+   * among equal-priority items, oldest entries are removed first.
+   *
+   * Useful inside `on('update', fn)` to keep memory usage bounded.
+   *
+   * @param maxItems - Maximum number of history entries to keep
+   *
+   * @example
+   * ```board
+   * <script>
+   * on('update', (input) => {
+   *   history(input.lastReply, { role: 'assistant' })
+   *   trimHistory(20)  // keep only the 20 most recent turns
+   * })
+   * </script>
+   * ```
+   */
+  trimHistory(maxItems: number): void
 }
 
 // ─── Options ──────────────────────────────────────────────────────────────────

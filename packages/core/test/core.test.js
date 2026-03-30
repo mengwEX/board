@@ -414,6 +414,67 @@ on('update', (input) => {
   await board.destroy()
 })
 
+// ─── Test: getHistory() and trimHistory() available in script context ─────
+
+await test('getHistory() is accessible inside script on() handlers', async () => {
+  const boardPath = await writeTmp('script-gethistory.board', `
+<template>
+  <out>{{ histLen }}</out>
+</template>
+<script>
+let histLen = 0
+on('update', (input) => {
+  history(input, { role: 'user' })
+  histLen = getHistory().length
+})
+</script>
+`)
+  const board = await createBoard(boardPath, { watch: false })
+
+  await board.update({ msg: 'a' })
+  const r1 = board.getState()
+  assert(r1.histLen === 1, `expected histLen=1 after 1st update, got ${r1.histLen}`)
+
+  await board.update({ msg: 'b' })
+  const r2 = board.getState()
+  assert(r2.histLen === 2, `expected histLen=2 after 2nd update, got ${r2.histLen}`)
+
+  await board.destroy()
+})
+
+await test('trimHistory() is accessible inside script on() handlers', async () => {
+  const boardPath = await writeTmp('script-trimhistory.board', `
+<template>
+  <out>{{ histLen }}</out>
+</template>
+<script>
+let histLen = 0
+on('update', (input) => {
+  history(input, { role: 'user' })
+  trimHistory(2)
+  histLen = getHistory().length
+})
+</script>
+`)
+  const board = await createBoard(boardPath, { watch: false })
+
+  await board.update({ msg: 'a' })
+  await board.update({ msg: 'b' })
+  await board.update({ msg: 'c' })
+  await board.update({ msg: 'd' })
+
+  const ctx = board.getContext()
+  assert(
+    ctx.history.length === 2,
+    `expected 2 history entries after script trimHistory(2), got ${ctx.history.length}`,
+  )
+
+  const state = board.getState()
+  assert(state.histLen === 2, `expected histLen=2, got ${state.histLen}`)
+
+  await board.destroy()
+})
+
 // ─── Results ─────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(50)}`)

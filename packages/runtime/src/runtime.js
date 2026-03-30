@@ -150,6 +150,9 @@ export class PromptuRuntime {
       // runtime memory APIs
       memory: (key, value) => runtime._ctx.memory(key, value),
       getMemory: (key) => runtime._ctx.getMemory(key),
+      // history management APIs
+      getHistory: (limit) => runtime._ctx.getHistory(limit),
+      trimHistory: (maxItems) => runtime._ctx.trimHistory(maxItems),
       __state__: this._state,
     }
 
@@ -158,6 +161,7 @@ export class PromptuRuntime {
       'on', 'emit', 'inject', 'turn', 'history', 'session', 'drop',
       'toolsByGroup', 'toolsByName', 'allTools',
       'memory', 'getMemory',
+      'getHistory', 'trimHistory',
     ]
 
     const topLevelNames = extractTopLevelNames(scriptSource)
