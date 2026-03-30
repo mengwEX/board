@@ -107,6 +107,18 @@ export class Board {
   }
 
   /**
+   * 获取对话历史记录。
+   * 等同于 .board script 内的 getHistory(limit)。
+   *
+   * @param {number} [limit] - 只取最近 N 条；省略时返回全部
+   * @returns {import('./index.d.ts').HistoryEntry[]}
+   */
+  getHistory(limit) {
+    this._assertAlive()
+    return this._runtime._ctx.getHistory(limit)
+  }
+
+  /**
    * 从外部触发一个命名事件，等同于 .board script 内调用 emit()。
    * .board script 里通过 on('emit:name', fn) 监听。
    *

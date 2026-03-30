@@ -475,6 +475,31 @@ on('update', (input) => {
   await board.destroy()
 })
 
+// ─── Test: board.getHistory() public API ─────────────────────────────────
+
+await test('board.getHistory() returns all history entries', async () => {
+  const boardPath = await writeTmp('board-gethistory.board', `
+<template><out>ok</out></template>
+<script>
+on('update', (input) => {
+  history(input.msg, { role: 'user' })
+})
+</script>
+`)
+  const board = await createBoard(boardPath, { watch: false })
+  await board.update({ msg: 'hello' })
+  await board.update({ msg: 'world' })
+
+  const all = board.getHistory()
+  assert(all.length === 2, `expected 2 entries, got ${all.length}`)
+
+  const limited = board.getHistory(1)
+  assert(limited.length === 1, `expected 1 entry with limit=1, got ${limited.length}`)
+  assert(limited[0].content === 'world', `expected last entry 'world', got '${limited[0].content}'`)
+
+  await board.destroy()
+})
+
 // ─── Results ─────────────────────────────────────────────────────────────
 
 console.log(`\n${'='.repeat(50)}`)

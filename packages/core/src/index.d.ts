@@ -237,6 +237,14 @@ export declare class Board {
   trimHistory(maxItems: number): void
 
   /**
+   * Return the current conversation history.
+   * Equivalent to `getHistory(limit)` inside the `.board` script.
+   *
+   * @param limit - If provided, return only the most recent `limit` entries
+   */
+  getHistory(limit?: number): HistoryEntry[]
+
+  /**
    * Fire a named event from outside the board.
    * The `.board` script listens via `on('emit:<name>', fn)`.
    *
