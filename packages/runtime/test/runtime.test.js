@@ -1476,3 +1476,72 @@ on('update', (input) => { docs = input.docs })
   assert(out.messages[2].role === 'user', 'Last message should be role=user')
   await board.destroy()
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// board.load() — runtime board swap
+// ═══════════════════════════════════════════════════════════════════════════
+
+await test('board.load() swaps the running board and fires mount hook', async () => {
+  const loadTmpDir = join(tmpDir, 'load-test')
+  await mkdir(loadTmpDir, { recursive: true })
+
+  const pathA = join(loadTmpDir, 'a.board')
+  const pathB = join(loadTmpDir, 'b.board')
+
+  await writeFile(pathA, `
+<template>
+  <result>{{ label }}</result>
+</template>
+<script>
+let label = 'board-A'
+</script>
+`)
+
+  await writeFile(pathB, `
+<template>
+  <result>{{ label }}</result>
+</template>
+<script>
+let label = 'board-B'
+on('mount', () => { label = 'board-B-mounted' })
+</script>
+`)
+
+  const rt = new PromptuRuntime(pathA, { watch: false })
+  await rt.start()
+
+  await rt._triggerHook('update', {})
+  const out1 = await rt._render()
+  assert(out1.result === 'board-A', `Expected board-A, got ${out1.result}`)
+
+  // swap to board B — _loadFile + mount hook (mirrors Board.load())
+  await rt._loadFile(pathB)
+  await rt._triggerHook('mount')
+
+  await rt._triggerHook('update', {})
+  const out2 = await rt._render()
+  assert(out2.result === 'board-B-mounted', `Expected board-B-mounted after load(), got ${out2.result}`)
+
+  await rt.stop()
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// board.destroy() idempotency
+// ═══════════════════════════════════════════════════════════════════════════
+
+await test('PromptuRuntime.stop() is idempotent (calling twice does not throw)', async () => {
+  const board = await createInlineBoard(`
+<template><result>ok</result></template>
+<script></script>
+`)
+  // destroy once via the helper (calls rt.stop())
+  await board.destroy()
+  // calling destroy() again should be safe
+  let threw = false
+  try {
+    await board.destroy()
+  } catch (e) {
+    threw = true
+  }
+  assert(!threw, 'destroy() should not throw when called a second time')
+})
