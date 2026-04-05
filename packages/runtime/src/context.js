@@ -1,5 +1,5 @@
 /**
- * @promptu/runtime — Context 管理
+ * @board/runtime — Context 管理
  *
  * 管理 turn / history / session / drop 四种数据生命周期。
  *

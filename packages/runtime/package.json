@@ -1,5 +1,5 @@
 {
-  "name": "@promptu/runtime",
+  "name": "@board/runtime",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -16,6 +16,6 @@
     "test": "node test/runtime.test.js"
   },
   "dependencies": {
-    "@promptu/parser": "*"
+    "@board/parser": "*"
   }
 }

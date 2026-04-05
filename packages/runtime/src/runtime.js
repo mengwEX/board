@@ -1,5 +1,5 @@
 /**
- * @promptu/runtime - Promptu Runtime
+ * @board/runtime - Board Runtime
  *
  * Generic reactive template engine:
  *   1. Load .board file (parse to AST)
@@ -13,12 +13,12 @@
 
 import { readFile, watch } from 'fs/promises'
 import { resolve, dirname } from 'path'
-import { parse } from '@promptu/parser'
+import { parse } from '@board/parser'
 import { ContextManager } from './context.js'
 import { renderTemplate } from './renderer.js'
 import { ToolRegistry } from './tool-registry.js'
 
-export class PromptuRuntime {
+export class BoardRuntime {
   /**
    * @param {string} entryPath - entry .board file path
    * @param {object} [opts]
@@ -526,3 +526,5 @@ function splitTopLevelCommas(str) {
   parts.push(str.slice(start))
   return parts
 }
+
+export { BoardRuntime as PromptuRuntime }

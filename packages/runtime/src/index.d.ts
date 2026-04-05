@@ -1,5 +1,5 @@
 /**
- * @promptu/runtime — TypeScript type definitions
+ * @board/runtime — TypeScript type definitions
  */
 
 // ─── HistoryEntry ─────────────────────────────────────────────────────────────
@@ -137,9 +137,9 @@ export declare function renderTemplate(
   ctx: ContextManager,
 ): unknown
 
-// ─── PromptuRuntime ───────────────────────────────────────────────────────────
+// ─── BoardRuntime ─────────────────────────────────────────────────────────────
 
-export interface PromptuRuntimeOptions {
+export interface BoardRuntimeOptions {
   /**
    * Watch the `.board` file (and included files) for changes and hot-reload.
    * @default true
@@ -166,18 +166,18 @@ export interface RuntimeContext {
  *
  * Lifecycle:
  * ```
- * const rt = new PromptuRuntime('./main.board')
+ * const rt = new BoardRuntime('./main.board')
  * await rt.start()          // load file, exec <script>, fire 'mount'
  * // ... use rt._triggerHook / rt._render for each turn ...
  * await rt.stop()           // fire 'destroy', stop file watcher
  * ```
  */
-export declare class PromptuRuntime {
+export declare class BoardRuntime {
   /**
    * @param entryPath - Path to the `.board` entry file
    * @param opts      - Optional configuration
    */
-  constructor(entryPath: string, opts?: PromptuRuntimeOptions)
+  constructor(entryPath: string, opts?: BoardRuntimeOptions)
 
   /**
    * Load the `.board` file, execute its `<script>`, optionally start the file
@@ -202,3 +202,6 @@ export declare class PromptuRuntime {
    */
   getContext(): RuntimeContext
 }
+
+/** Backward-compatible alias for earlier internal package naming. */
+export declare class PromptuRuntime extends BoardRuntime {}

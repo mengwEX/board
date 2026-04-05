@@ -1,5 +1,5 @@
 /**
- * @promptu/parser — TypeScript type definitions
+ * @board/parser — TypeScript type definitions
  */
 
 // ─── AST Node Types ───────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ export declare class ParseError extends Error {
  *
  * @example
  * ```ts
- * import { parse } from '@promptu/parser'
+ * import { parse } from '@board/parser'
  *
  * const ast = parse(`
  *   <template>

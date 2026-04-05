@@ -38,6 +38,6 @@
     "test": "node test/core.test.js"
   },
   "dependencies": {
-    "@promptu/runtime": "*"
+    "@board/runtime": "*"
   }
 }

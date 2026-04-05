@@ -22,7 +22,7 @@
  *   // output — 由 .board <template> 渲染结果决定
  */
 
-import { PromptuRuntime } from '@promptu/runtime'
+import { BoardRuntime } from '@board/runtime'
 
 // ─── 公开 API ─────────────────────────────────────────────────────────────────
 
@@ -35,7 +35,7 @@ import { PromptuRuntime } from '@promptu/runtime'
  * @returns {Promise<Board>}
  */
 export async function createBoard(boardPath, opts = {}) {
-  const runtime = new PromptuRuntime(boardPath, {
+  const runtime = new BoardRuntime(boardPath, {
     watch: opts.watch ?? true,
   })
   await runtime.start()

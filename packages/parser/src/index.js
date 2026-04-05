@@ -1,5 +1,5 @@
 /**
- * @promptu/parser
+ * @board/parser
  * 解析 .board 文件为 AST
  */
 

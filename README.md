@@ -388,8 +388,8 @@ on('update', (input) => {
 | Package | Description |
 |---------|-------------|
 | `@board/core` | Public SDK — `createBoard`, `board.update` |
-| `@promptu/runtime` *(internal)* | Reactive runtime, hot reload, hook system |
-| `@promptu/parser` *(internal)* | `.board` file parser |
+| `@board/runtime` *(internal)* | Reactive runtime, hot reload, hook system |
+| `@board/parser` *(internal)* | `.board` file parser |
 
 ## Debug
 

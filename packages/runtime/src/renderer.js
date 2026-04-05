@@ -1,5 +1,5 @@
 /**
- * @promptu/runtime — Template 渲染器
+ * @board/runtime — Template 渲染器
  *
  * 把 TemplateAST + 响应式状态 → 由 template 定义的输出结构
  *
@@ -8,7 +8,7 @@
 
 /**
  * 渲染整个 template AST
- * @param {import('@promptu/parser').TemplateAST} ast
+ * @param {import('@board/parser').TemplateAST} ast
  * @param {object} state - 响应式状态（script 里的变量）
  * @param {import('./context.js').ContextManager} ctx
  * @returns {any} 由 template 结构决定的输出
